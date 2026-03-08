@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario - Gestión de Atestados</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a237e 0%, #2962ff 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            margin: -40px -40px 40px -40px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .logo-police {
+            width: 120px;
+            height: auto;
+        }
+
+        h1 {
+            color: #1a237e;
+            font-size: 28px;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #2962ff;
+        }
+
+        h2 {
+            color: #2962ff;
+            font-size: 22px;
+            margin: 25px 0 12px 0;
+        }
+
+        h3 {
+            color: #333;
+            font-size: 18px;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 10px 0 10px 25px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            border-left: 5px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .step-number {
+            background: #2962ff;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .feature-box {
+            background: white;
+            border: 2px solid #2962ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .feature-box h3 {
+            color: #2962ff;
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #2962ff;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            padding: 5px 0;
+        }
+
+        .toc a {
+            color: #2962ff;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            .header {
+                background: #1a237e !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .warning, .info, .success, .step, .feature-box {
+                page-break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .header {
+                padding: 20px;
+                margin: -20px -20px 30px -20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 MANUAL DE USUARIO</h1>
+            <h2>Sistema de Gestión de Atestados de Tráfico</h2>
+            <p style="margin-top: 15px; font-size: 16px;">Policía Local C.P. 0855 - UVAC Palma</p>
+        </div>
+
+        <div class="logo-section">
+            <svg class="logo-police" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                <rect width="400" height="200" fill="#1a237e"/>
+                <text x="200" y="90" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">POLICIA</text>
+                <g transform="translate(50, 110)">
+                    <rect x="0" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                    <rect x="35" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                    <rect x="70" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                </g>
+                <text x="200" y="150" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">LOCAL</text>
+            </svg>
+        </div>
+
+        <div class="info">
+            <strong>📱 Versión:</strong> 1.0 | <strong>📅 Fecha:</strong> Marzo 2026 | <strong>💻 Compatible con:</strong> iPhone, iPad (iOS 15+)
+        </div>
+
+        <div class="toc">
+            <h3>📑 ÍNDICE DE CONTENIDOS</h3>
+            <ul>
+                <li><a href="#introduccion">1. Introducción</a></li>
+                <li><a href="#acceso">2. Acceso a la Aplicación</a></li>
+                <li><a href="#interfaz">3. Interfaz Principal</a></li>
+                <li><a href="#crear">4. Crear Nuevo Atestado</a></li>
+                <li><a href="#datos">5. Datos Generales</a></li>
+                <li><a href="#diligencias">6. Gestión de Diligencias</a></li>
+                <li><a href="#fotos">7. Adjuntar Fotografías</a></li>
+                <li><a href="#recordatorios">8. Recordatorios</a></li>
+                <li><a href="#busqueda">9. Búsqueda y Filtrado</a></li>
+                <li><a href="#exportar">10. Exportar a Excel</a></li>
+                <li><a href="#eliminar">11. Eliminar Atestados</a></li>
+                <li><a href="#consejos">12. Consejos y Recomendaciones</a></li>
+            </ul>
+        </div>
+
+        <section id="introduccion">
+            <h1>1. INTRODUCCIÓN</h1>
+            
+            <p>
+                La aplicación <strong>Gestión de Atestados de Tráfico</strong> es una herramienta digital diseñada específicamente 
+                para la Policía Local de Palma (C.P. 0855 - UVAC) que permite gestionar de forma eficiente y organizada 
+                los atestados de accidentes de tráfico.
+            </p>
+
+            <div class="feature-box">
+                <h3>🎯 Características Principales</h3>
+                <ul>
+                    <li><strong>Creación rápida</strong> de atestados con todos los datos del siniestro</li>
+                    <li><strong>Geolocalización GPS</strong> automática del lugar del accidente</li>
+                    <li><strong>Gestión de diligencias</strong> pendientes y realizadas con gráfico de progreso</li>
+                    <li><strong>Cámara integrada</strong> para adjuntar fotografías directamente</li>
+                    <li><strong>Recordatorios</strong> en la agenda del dispositivo</li>
+                    <li><strong>Búsqueda avanzada</strong> por número, matrícula, lugar o fecha</li>
+                    <li><strong>Exportación a Excel</strong> para informes y estadísticas</li>
+                    <li><strong>Funcionamiento offline</strong> - No requiere conexión continua</li>
+                </ul>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Importante:</strong> Los datos se almacenan localmente en el dispositivo. 
+                Se recomienda realizar copias de seguridad periódicas exportando los datos a Excel.
+            </div>
+        </section>
+
+        <section id="acceso">
+            <h1>2. ACCESO A LA APLICACIÓN</h1>
+
+            <h2>📲 Primer Uso</h2>
+            
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Abrir el archivo HTML</strong></p>
+                <p>Abre Safari en tu iPhone/iPad y accede al archivo <code>atestados.html</code></p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Añadir a la pantalla de inicio (Opcional)</strong></p>
+                <ul>
+                    <li>Pulsa el botón <strong>Compartir</strong> de Safari</li>
+                    <li>Selecciona <strong>"Añadir a pantalla de inicio"</strong></li>
+                    <li>Confirma el nombre "Atestados UVAC"</li>
+                    <li>Ahora tendrás un icono directo como una app nativa</li>
+                </ul>
+            </div>
+
+            <div class="info">
+                <strong>💡 Consejo:</strong> Añadir la app a la pantalla de inicio permite un acceso más rápido 
+                y funciona en modo pantalla completa sin la barra de Safari.
+            </div>
+        </section>
+
+        <section id="interfaz">
+            <h1>3. INTERFAZ PRINCIPAL</h1>
+
+            <h2>🏠 Pantalla de Inicio (Listado)</h2>
+            
+            <p>Al abrir la aplicación verás:</p>
+
+            <table>
+                <tr>
+                    <th>Elemento</th>
+                    <th>Descripción</th>
+                </tr>
+                <tr>
+                    <td><strong>Encabezado</strong></td>
+                    <td>Logo de Policía Local y barra de búsqueda</td>
+                </tr>
+                <tr>
+                    <td><strong>Barra de búsqueda</strong></td>
+                    <td>Busca por nº atestado, matrícula, lugar o fecha</td>
+                </tr>
+                <tr>
+                    <td><strong>Tarjetas de atestados</strong></td>
+                    <td>Cada atestado muestra: número, fecha, ubicación, matrículas y estado de diligencias</td>
+                </tr>
+                <tr>
+                    <td><strong>Botón + (flotante)</strong></td>
+                    <td>Crea un nuevo atestado (esquina inferior derecha)</td>
+                </tr>
+            </table>
+
+            <h2>📊 Información en Tarjetas</h2>
+            
+            <ul>
+                <li><span class="icon">🔵</span> <strong>Barra azul superior:</strong> Atestado con diligencias pendientes</li>
+                <li><span class="icon">🟢</span> <strong>Barra verde superior:</strong> Todas las diligencias completadas</li>
+                <li><span class="icon">⏳</span> <strong>Badge amarillo:</strong> Número de diligencias pendientes</li>
+                <li><span class="icon">✅</span> <strong>Badge verde:</strong> Número de diligencias realizadas</li>
+            </ul>
+        </section>
+
+        <section id="crear">
+            <h1>4. CREAR NUEVO ATESTADO</h1>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Pulsar el botón +</strong></p>
+                <p>Toca el botón circular azul en la esquina inferior derecha</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Introducir Número de Atestado</strong></p>
+                <ul>
+                    <li>Escribe la referencia oficial (ej: <code>2024-001</code>)</li>
+                    <li>La cabecera se actualiza automáticamente</li>
+                    <li><strong>Este número será único</strong> e identificador del atestado</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Completar datos obligatorios</strong></p>
+                <ul>
+                    <li>✅ Fecha del siniestro</li>
+                    <li>✅ Hora del siniestro</li>
+                    <li>✅ Ubicación (manual o GPS)</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">4</span> <strong>Añadir diligencias</strong></p>
+                <p>Ver sección 6 para detalles</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">5</span> <strong>Guardar</strong></p>
+                <p>Pulsa el botón verde "💾 Guardar Atestado"</p>
+            </div>
+        </section>
+
+        <section id="datos">
+            <h1>5. DATOS GENERALES</h1>
+
+            <h2>📋 Campos Disponibles</h2>
+
+            <h3>Número de Atestado (Referencia)</h3>
+            <ul>
+                <li>Campo obligatorio</li>
+                <li>Debe ser único</li>
+                <li>Formato recomendado: <code>AÑO-NÚMERO</code> (ej: 2024-001)</li>
+                <li>Se muestra en la cabecera azul destacada</li>
+            </ul>
+
+            <h3>Fecha y Hora del Siniestro</h3>
+            <ul>
+                <li><strong>Fecha:</strong> Selector de calendario iOS</li>
+                <li><strong>Hora:</strong> Selector de hora (formato 24h)</li>
+                <li>Ambos campos son obligatorios</li>
+            </ul>
+
+            <h3>📍 Ubicación del Accidente</h3>
+            
+            <p><strong>Dos métodos disponibles:</strong></p>
+
+            <div class="feature-box">
+                <h4>Opción A: Dirección Manual</h4>
+                <ul>
+                    <li>Selecciona el botón "📝 Dirección Manual"</li>
+                    <li>Escribe la dirección completa</li>
+                    <li>Ej: "Calle Constitución nº 15, Km 3.5"</li>
+                </ul>
+            </div>
+
+            <div class="feature-box">
+                <h4>Opción B: Geolocalización GPS</h4>
+                <div class="step">
+                    <p><span class="step-number">1</span> Selecciona "📍 GPS"</p>
+                </div>
+                <div class="step">
+                    <p><span class="step-number">2</span> Pulsa "📍 Obtener Ubicación GPS"</p>
+                </div>
+                <div class="step">
+                    <p><span class="step-number">3</span> Permite el acceso a la ubicación si se solicita</p>
+                </div>
+                <div class="step">
+                    <p><span class="step-number">4</span> Espera a que se obtengan las coordenadas</p>
+                    <ul>
+                        <li>Latitud y longitud se muestran automáticamente</li>
+                        <li>La dirección se obtiene por geolocalización inversa</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info">
+                <strong>💡 Consejo:</strong> El GPS es más preciso y rápido. Úsalo siempre que estés en el lugar del accidente.
+            </div>
+
+            <h3>🚗 Matrículas Implicadas</h3>
+            <ul>
+                <li>Campo opcional pero recomendado</li>
+                <li>Introduce las matrículas separadas por coma</li>
+                    <li>Ejemplo: <code>1234ABC, 5678XYZ, 9012DEF</code></li>
+                <li>Permite búsquedas rápidas posteriores</li>
+            </ul>
+        </section>
+
+        <section id="diligencias">
+            <h1>6. GESTIÓN DE DILIGENCIAS</h1>
+
+            <h2>📊 Gráfico de Progreso (Tarta)</h2>
+            <p>En la parte superior verás un gráfico circular que muestra:</p>
+            <ul>
+                <li><span style="color: #34C759;">■</span> <strong>Verde:</strong> Diligencias Realizadas</li>
+                <li><span style="color: #FF9500;">■</span> <strong>Ámbar:</strong> Diligencias Pendientes</li>
+                <li><strong>Porcentaje central:</strong> % de completado</li>
+            </ul>
+
+            <h2>➕ Añadir Nueva Diligencia</h2>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Seleccionar tipo</strong></p>
+                <p>Elige del menú desplegable:</p>
+                <ul>
+                    <li>Diligencia de Hechos</li>
+                    <li>Inspección Ocular de la Vía</li>
+                    <li>Inspección Ocular del Vehículo A/B/C</li>
+                    <li>Inspección Ocular Conductor/Peatón/Testigo</li>
+                    <li>Croquis del Accidente</li>
+                    <li>Denuncias Administrativas</li>
+                    <li>Diligencias Penales</li>
+                    <li>Otras Diligencias</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Fecha y Hora</strong></p>
+                <ul>
+                    <li>Selecciona la fecha de realización</li>
+                    <li>Indica la hora (por defecto 09:00)</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Añadir</strong></p>
+                <p>Pulsa "➕ Añadir Diligencia (Pendiente)"</p>
+                <p>La diligencia aparecerá en la sección "⏳ Diligencias Pendientes"</p>
+            </div>
+
+            <h2>✅ Marcar como Realizada</h2>
+            
+            <p>En cada diligencia verás botones de acción:</p>
+
+            <div class="feature-box">
+                <h4>Botón "✅ Marcar como Realizada"</h4>
+                <ul>
+                    <li>Cambia el estado de Pendiente a Realizada</li>
+                    <li>Se registra automáticamente la fecha de completado</li>
+                    <li>La diligencia se mueve a la sección "✅ Diligencias Realizadas"</li>
+                    <li>El gráfico de tarta se actualiza</li>
+                </ul>
+            </div>
+
+            <div class="feature-box">
+                <h4>Botón "↩️ Marcar como Pendiente"</h4>
+                <ul>
+                    <li>Revierte el estado (de Realizada a Pendiente)</li>
+                    <li>Útil si te has equivocado o necesitas revisar</li>
+                </ul>
+            </div>
+
+            <h2>🗑️ Eliminar una Diligencia</h2>
+            <ul>
+                <li>Pulsa el botón rojo "🗑️ Eliminar"</li>
+                <li>Confirma la eliminación</li>
+                <li>La diligencia se borra permanentemente</li>
+            </ul>
+
+            <div class="warning">
+                <strong>⚠️ Nota:</strong> Al eliminar una diligencia, también se eliminan las fotos asociadas.
+            </div>
+        </section>
+
+        <section id="fotos">
+            <h1>7. ADJUNTAR FOTOGRAFÍAS</h1>
+
+            <h2>📸 Desde la Cámara del iPhone</h2>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Añadir diligencia</strong></p>
+                <p>Primero debes crear la diligencia a la que asociar las fotos</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Pulsar botón Cámara</strong></p>
+                <p>En la diligencia, pulsa el botón azul "📸 Cámara"</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Permitir acceso a cámara</strong></p>
+                <p>Si es la primera vez, iOS te pedirá permiso. Pulsa "Permitir"</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">4</span> <strong>Tomar fotografías</strong></p>
+                <ul>
+                    <li>La cámara se abre automáticamente</li>
+                    <li>Puedes tomar múltiples fotos</li>
+                    <li>Usa la cámara trasera por defecto (más calidad)</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">5</span> <strong>Seleccionar/Confirmar</strong></p>
+                <ul>
+                    <li>Selecciona las fotos tomadas</li>
+                    <li>Pulsa "Hecho" o "Añadir"</li>
+                    <li>Las fotos se adjuntan automáticamente</li>
+                </ul>
+            </div>
+
+            <h2>🖼️ Ver Fotografías</h2>
+            
+            <ul>
+                <li><strong>Miniaturas:</strong> Se muestran en cuadrícula dentro de la diligencia</li>
+                <li><strong>Contador:</strong> Indica el número total de fotos (ej: "📸 5 foto(s) adjuntada(s)")</li>
+                <li><strong>Vista ampliada:</strong> Pulsa cualquier miniatura para verla a pantalla completa</li>
+                <li><strong>Cerrar:</strong> Pulsa la "X" o fuera de la imagen para cerrar</li>
+            </ul>
+
+            <div class="info">
+                <strong>💡 Consejos:</strong>
+                <ul>
+                    <li>Puedes añadir fotos en cualquier momento, incluso después de guardar</li>
+                    <li>Límite recomendado: 10-15 fotos por diligencia para no saturar</li>
+                    <li>Las fotos se comprimen automáticamente</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="recordatorios">
+            <h1>8. RECORDATORIOS EN AGENDA</h1>
+
+            <h2>🔔 Crear Recordatorio</h2>
+
+            <p>Esta función genera un evento en la agenda de tu iPhone/iPad para no olvidar realizar una diligencia.</p>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Seleccionar diligencia</strong></p>
+                <p>Busca la diligencia pendiente en el listado</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Pulsar botón Recordatorio</strong></p>
+                <p>Pulsa el botón naranja "🔔 Recordatorio"</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Descargar archivo .ics</strong></p>
+                <ul>
+                    <li>Se descarga automáticamente un archivo</li>
+                    <li>Nombre: <code>Recordatorio_2024-001_Inspección_Ocular.ics</code></li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">4</span> <strong>Abrir archivo</strong></p>
+                <ul>
+                    <li>Toca el archivo descargado</li>
+                    <li>Se abre la app Calendario</li>
+                    <li>Selecciona la agenda donde guardarlo</li>
+                    <li>Pulsa "Añadir"</li>
+                </ul>
+            </div>
+
+            <h2>📅 Información del Evento</h2>
+            
+            <p>El recordatorio incluye:</p>
+            <ul>
+                <li><strong>Título:</strong> "Atestado 2024-001 - Inspección Ocular de la Vía"</li>
+                <li><strong>Fecha y hora:</strong> Las indicadas en la diligencia</li>
+                <li><strong>Duración:</strong> 1 hora</li>
+                <li><strong>Ubicación:</strong> UVAC Palma</li>
+                <li><strong>Alerta:</strong> 15 minutos antes</li>
+                <li><strong>Descripción:</strong> Detalles completos de la diligencia</li>
+            </ul>
+
+            <div class="info">
+                <strong>💡 Consejo:</strong> Puedes modificar el recordatorio en la app Calendario 
+                (cambiar hora, añadir más alertas, etc.)
+            </div>
+        </section>
+
+        <section id="busqueda">
+            <h1>9. BÚSQUEDA Y FILTRADO</h1>
+
+            <h2>🔍 Barra de Búsqueda</h2>
+            
+            <p>Ubicada en la parte superior, debajo del logo.</p>
+
+            <h3>Criterios de Búsqueda</h3>
+            
+            <p>Puedes buscar por:</p>
+            <ul>
+                <li><strong>Número de Atestado:</strong> Escribe "2024-001"</li>
+                <li><strong>Matrícula:</strong> Escribe "1234ABC" (parcial o completa)</li>
+                <li><strong>Lugar:</strong> Escribe "Constitución" o "Calle"</li>
+                <li><strong>Fecha:</strong> Escribe "03/2024" o "2024"</li>
+                <li><strong>Combinado:</strong> La búsqueda es inteligente y busca en todos los campos</li>
+            </ul>
+
+            <h3>Ejemplos de Búsqueda</h3>
+            
+            <table>
+                <tr>
+                    <th>Buscas...</th>
+                    <th>Escribe...</th>
+                    <th>Resultados</th>
+                </tr>
+                <tr>
+                    <td>Atestado específico</td>
+                    <td><code>2024-001</code></td>
+                    <td>Solo ese atestado</td>
+                </tr>
+                <tr>
+                    <td>Todas las matrículas ABC</td>
+                    <td><code>ABC</code></td>
+                    <td>1234ABC, 5678ABC, etc.</td>
+                </tr>
+                <tr>
+                    <td>Atestados de marzo</td>
+                    <td><code>03/2024</code></td>
+                    <td>Todos los de marzo 2024</td>
+                </tr>
+                <tr>
+                    <td>Accidentes en una calle</td>
+                    <td><code>Constitución</code></td>
+                    <td>Todos en esa vía</td>
+                </tr>
+            </table>
+
+            <h3>Limpiar Búsqueda</h3>
+            <ul>
+                <li>Pulsa la "X" en la barra de búsqueda</li>
+                <li>O borra el texto manualmente</li>
+                <li>Se muestran todos los atestados de nuevo</li>
+            </ul>
+        </section>
+
+        <section id="exportar">
+            <h1>10. EXPORTAR A EXCEL</h1>
+
+            <h2>📊 Exportar Todos los Atestados</h2>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Acceder a un atestado</strong></p>
+                <p>Abre cualquier atestado (la función exporta TODOS, no solo el abierto)</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Pulsar "📊 Exportar Excel"</strong></p>
+                <p>Botón azul en la parte inferior</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Descarga automática</strong></p>
+                <ul>
+                    <li>Se genera archivo: <code>Atestados_Policia_Palma_2024-03-15.csv</code></li>
+                    <li>Formato CSV (compatible con Excel, Numbers, Google Sheets)</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">4</span> <strong>Abrir archivo</strong></p>
+                <ul>
+                    <li>Toca el archivo descargado</li>
+                    <li>Se abre automáticamente en Excel/Numbers</li>
+                    <li>O guárdalo en Files/iCloud</li>
+                </ul>
+            </div>
+
+            <h2>📋 Datos Exportados</h2>
+            
+            <p>El Excel incluye las siguientes columnas:</p>
+            <ul>
+                <li><strong>Organización:</strong> Policía Local C.P. 0855 UVAC Palma</li>
+                <li><strong>Número:</strong> Referencia del atestado</li>
+                <li><strong>Fecha:</strong> Fecha del siniestro</li>
+                <li><strong>Hora:</strong> Hora del siniestro</li>
+                <li><strong>Lugar:</strong> Ubicación (dirección o GPS)</li>
+                <li><strong>Matrículas:</strong> Vehículos implicados</li>
+                <li><strong>Total Diligencias:</strong> Número total</li>
+                <li><strong>Completadas:</strong> Nº de diligencias realizadas</li>
+                <li><strong>Pendientes:</strong> Nº de diligencias pendientes</li>
+                <li><strong>Detalles Diligencias:</strong> Lista completa con tipo, fecha, estado y nº de fotos</li>
+            </ul>
+
+            <div class="info">
+                <strong>💡 Usos del Excel:</strong>
+                <ul>
+                    <li>Informes estadísticos mensuales/anuales</li>
+                    <li>Copias de seguridad</li>
+                    <li>Envío a juzgados o aseguradoras</li>
+                    <li>Análisis de datos</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="eliminar">
+            <h1>11. ELIMINAR ATESTADOS</h1>
+
+            <div class="warning">
+                <strong>⚠️ ADVERTENCIA:</strong> La eliminación es PERMANENTE e IRREVERSIBLE. 
+                Los datos no se pueden recuperar.
+            </div>
+
+            <h2>🗑️ Proceso de Eliminación</h2>
+
+            <div class="step">
+                <p><span class="step-number">1</span> <strong>Acceder al atestado</strong></p>
+                <p>Abre el atestado que deseas eliminar</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">2</span> <strong>Desplazarse al final</strong></p>
+                <p>La sección de eliminación está al final del formulario</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">3</span> <strong>Sección "🗑️ Eliminar Atestado"</strong></p>
+                <ul>
+                    <li>Fondo rojo claro con borde rojo</li>
+                    <li>Solo visible si el atestado tiene diligencias</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">4</span> <strong>Pulsar "🗑️ Eliminar Permanentemente"</strong></p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">5</span> <strong>Confirmar</strong></p>
+                <ul>
+                    <li>Aparece ventana de confirmación</li>
+                    <li>Muestra el número de atestado</li>
+                    <li>Pulsa "OK" para confirmar o "Cancelar" para abortar</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <p><span class="step-number">6</span> <strong>Eliminación completada</strong></p>
+                <p>Mensaje de confirmación y vuelta al listado</p>
+            </div>
+
+            <h2>📌 Condiciones</h2>
+            <ul>
+                <li>Solo se pueden eliminar atestados con al menos una diligencia</li>
+                <li>Si no hay diligencias, el botón aparece desactivado</li>
+                <li>Se eliminan TODOS los datos: diligencias, fotos, coordenadas, etc.</li>
+            </ul>
+        </section>
+
+        <section id="consejos">
+            <h1>12. CONSEJOS Y RECOMENDACIONES</h1>
+
+            <h2>📱 Uso Óptimo</h2>
+            
+            <div class="feature-box">
+                <h3>✅ Mejores Prácticas</h3>
+                <ol>
+                    <li><strong>Usa GPS siempre que puedas:</strong> Más rápido y preciso que escribir direcciones</li>
+                    <li><strong>Añade fotos in situ:</strong> Mejor calidad y no se olvidan detalles</li>
+                    <li><strong>Marca diligencias al completar:</strong> El gráfico te ayuda a ver el progreso</li>
+                    <li><strong>Usa recordatorios:</strong> Para diligencias futuras o complejas</li>
+                    <li><strong>Exporta semanalmente:</strong> Copia de seguridad en Excel</li>
+                </ol>
+            </div>
+
+            <h2>🔋 Rendimiento</h2>
+            
+            <ul>
+                <li><strong>Limpieza periódica:</strong> Elimina atestados antiguos ya cerrados</li>
+                <li><strong>Fotos:</strong> Máximo 10-15 por diligencia para no saturar</li>
+                <li><strong>Almacenamiento:</strong> Los datos ocupan espacio en el dispositivo</li>
+                <li><strong>Exporta y borra:</strong> Si necesitas espacio, exporta a Excel y elimina</li>
+            </ul>
+
+            <h2>🔒 Privacidad y Seguridad</h2>
+            
+            <ul>
+                <li><strong>Datos locales:</strong> Todo se guarda en TU dispositivo</li>
+                <li><strong>Sin internet:</strong> No se envía nada a servidores externos</li>
+                <li><strong>Bloqueo de pantalla:</strong> Protege tu iPhone con código/Face ID</li>
+                <li><strong>Copias de seguridad:</strong> iCloud backup incluye los datos</li>
+            </ul>
+
+            <h2>⚠️ Solución de Problemas</h2>
+            
+            <table>
+                <tr>
+                    <th>Problema</th>
+                    <th>Solución</th>
+                </tr>
+                <tr>
+                    <td>No se abre la cámara</td>
+                    <td>Verifica permisos en Ajustes > Privacidad > Cámara</td>
+                </tr>
+                <tr>
+                    <td>No obtiene GPS</td>
+                    <td>Activa Ubicación en Ajustes > Privacidad > Localización</td>
+                </tr>
+                <tr>
+                    <td>No se guardan datos</td>
+                    <td>Verifica que hay espacio libre en el dispositivo</td>
+                </tr>
+                <tr>
+                    <td>App va lenta</td>
+                    <td>Cierra y reabre Safari. Exporta y elimina atestados antiguos</td>
+                </tr>
+                <tr>
+                    <td>No abre Excel</td>
+                    <td>Instala Microsoft Excel o usa Numbers (gratis en iOS)</td>
+                </tr>
+            </table>
+
+            <h2>📞 Soporte</h2>
+            
+            <div class="info">
+                <strong>Para incidencias o dudas:</strong>
+                <ul>
+                    <li>Revisa este manual completo</li>
+                    <li>Verifica que usas la última versión</li>
+                    <li>Reinicia la aplicación (cerrar Safari y volver a abrir)</li>
+                    <li>Reinicia el dispositivo si persiste el problema</li>
+                </ul>
+            </div>
+
+            <div class="success">
+                <strong>✨ ¡Gracias por usar el Sistema de Gestión de Atestados!</strong>
+                <p style="margin-top: 10px;">
+                    Diseñado para facilitar tu trabajo diario en la Policía Local de Palma.
+                </p>
+            </div>
+        </section>
+
+        <div class="page-break"></div>
+
+        <section style="text-align: center; margin-top: 50px; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+            <h2 style="color: #1a237e; margin-bottom: 20px;">Policía Local C.P. 0855</h2>
+            <p style="font-size: 16px; color: #666;">UVAC Palma - Sistema de Gestión de Atestados</p>
+            <p style="margin-top: 20px; font-size: 14px; color: #999;">
+                Documento generado: Marzo 2026<br>
+                Versión 1.0
+            </p>
+        </section>
+    </div>
+
+    <script>
+        // Smooth scroll para enlaces del índice
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if(target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
