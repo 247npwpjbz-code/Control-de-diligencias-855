@@ -726,6 +726,9 @@
             .header-text { color: black !important; }
         }
     </style>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -931,6 +934,102 @@
 
     <script>
         let atestados = JSON.parse(localStorage.getItem('atestadosDB')) || [];
+                // 🔥 FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            // PEGA // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC9fjJYSmXfzdtDtrs-B0JfS9iotqDUPJY",
+  authDomain: "atestados-policia-palma.firebaseapp.com",
+  projectId: "atestados-policia-palma",
+  storageBucket: "atestados-policia-palma.firebasestorage.app",
+  messagingSenderId: "680050053111",
+  appId: "1:680050053111:web:4101ea8b813ac07765e8f2",
+  measurementId: "G-DCH9LM9HEG"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);AQUÍ TU CÓDIGO DE FIREBASE
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let isOnline = navigator.onLine;
+
+        window.addEventListener('online', () => { isOnline = true; syncData(); });
+        window.addEventListener('offline', () => { isOnline = false; });
+
+        function listenToAtestados() {
+            if(!isOnline) return;
+            db.collection('atestados').onSnapshot((snapshot) => {
+                const nuevos = [];
+                snapshot.forEach((doc) => {
+                    nuevos.push({ id: doc.id, ...doc.data() });
+                });
+                atestados = nuevos;
+                locconst savedId = await saveToCloud(newData, id);
+if(!id) {
+    newData.id = savedId;
+    atestados.push(newData);
+} else {
+    const index = atestados.findIndex(a => a.id === id);
+    if(index !== -1) {
+        atestados[index] = { ...atestados[index], ...newData, id };
+    }
+}alStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                if(typeof renderList === 'function') renderList();
+            });
+        }
+
+        async function saveToCloud(data, id) {
+            if(!isOnline) {
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                return id || Date.now().toString();
+            }
+            try {
+                if(id) {
+                    await db.collection('atestados').doc(id).update(data);
+                } else {
+                    const docRef = await db.collection('atestados').add(data);
+                    return docRef.id;
+                }
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                return id;
+            } catch(error) {
+                console.error('Error:', error);
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                return id || Date.now().toString();
+            }
+        }
+
+        async function deleteFromCloud(id) {
+            if(isOnline) {
+                try { await db.collection('atestados').doc(id).delete(); } catch(e) {}
+            }
+        }
+
+        async function syncData() {
+            if(!isOnline) return;
+            listenToAtestados();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cached = localStorage.getItem('atestadosDB');
+            if(cached) {
+                atestados = JSON.parse(cached);
+                if(typeof renderList === 'function') renderList();
+            }
+            setTimeout(() => {
+                isOnline = navigator.onLine;
+                if(isOnline) listenToAtestados();
+            }, 1000);
+        });
         let currentLocationMode = 'manual';
         let diligenciasTemp = [];
         let currentDiligenciaId = null;
@@ -1485,6 +1584,7 @@
             if(!atestado) return;
             
             if(confirm(`⚠️ ¿Eliminar permanentemente el Atestado #${atestado.numAtestado}?\n\nEsta acción NO se puede deshacer.`)) {
+                await deleteFromCloud(id);
                 atestados = atestados.filter(a => a.id !== id);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 alert('🗑️ Atestado eliminado');
