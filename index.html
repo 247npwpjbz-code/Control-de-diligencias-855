@@ -1316,41 +1316,69 @@
             appId: "1:680050053111:web:4101ea8b813ac07765e8f2"
         };
 
-        // Inicializar Firebase
+        // ============================================
+        // INICIALIZAR FIREBASE
+        // ============================================
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             firebaseInitialized = true;
-            console.log('✅ Firebase inicializado');
+            console.log('✅ Firebase inicializado correctamente');
             
-            db.collection('atestados').onSnapshot((snapshot) => {
-                atestados = [];
-                snapshot.forEach((doc) => {
-                    atestados.push({ id: doc.id, ...doc.data() });
-                });
-                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
-                if(document.getElementById('mainApp').style.display !== 'none') renderList();
-            });
+            // Escuchar cambios en tiempo real
+            db.collection('atestados').onSnapshot(
+                (snapshot) => {
+                    atestados = [];
+                    snapshot.forEach((doc) => {
+                        atestados.push({ id: doc.id, ...doc.data() });
+                    });
+                    localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                    if(document.getElementById('mainApp').style.display !== 'none') {
+                        renderList();
+                    }
+                    console.log('📡 Sincronizados ' + atestados.length + ' atestados');
+                },
+                (error) => {
+                    console.error('❌ Error escuchando cambios:', error);
+                    updateSyncStatus('offline');
+                }
+            );
         } catch(error) {
             console.error('❌ Error Firebase:', error);
+            updateSyncStatus('offline');
             const cached = localStorage.getItem('atestadosDB');
-            if(cached) atestados = JSON.parse(cached);
+            if(cached) {
+                atestados = JSON.parse(cached);
+            }
         }
 
         // ============================================
-        // LOGIN
+        // LOGIN SYSTEM
         // ============================================
         function login() {
             const name = document.getElementById('agentName').value.trim();
             const badge = document.getElementById('agentBadge').value.trim();
-            if(!name || !badge) { alert('❌ Completa nombre y placa'); return; }
-            currentAgent = { name, badge, loginTime: new Date().toISOString() };
+            
+            if(!name || !badge) {
+                alert('❌ Completa nombre y placa');
+                return;
+            }
+            
+            currentAgent = { 
+                name: name, 
+                badge: badge, 
+                loginTime: new Date().toISOString() 
+            };
             localStorage.setItem('currentAgent', JSON.stringify(currentAgent));
+            
             document.getElementById('loginView').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             document.getElementById('syncStatus').style.display = 'flex';
+            
             updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
             renderList();
+            
+            showDebug('👮 Agente: ' + name + ' (' + badge + ')');
         }
 
         function logout() {
@@ -1372,22 +1400,36 @@
         }
 
         // ============================================
-        // SYNC & THEME
+        // SYNC STATUS
         // ============================================
         function updateSyncStatus(status) {
             const syncStatus = document.getElementById('syncStatus');
             const syncText = document.getElementById('syncText');
-            const classes = { online: 'online', syncing: 'syncing', error: 'error', offline: 'offline' };
-            const texts = { online: '📡 Online', syncing: '🔄 Sync...', error: '❌ Error', offline: '📡 Offline' };
-            syncStatus.className = 'sync-status ' + classes[status];
-            syncText.textContent = texts[status];
+            
+            if(status === 'online') {
+                syncStatus.className = 'sync-status online';
+                syncText.textContent = '📡 Online';
+            } else if(status === 'syncing') {
+                syncStatus.className = 'sync-status syncing';
+                syncText.textContent = '🔄 Sync...';
+            } else if(status === 'error') {
+                syncStatus.className = 'sync-status error';
+                syncText.textContent = '❌ Error';
+            } else {
+                syncStatus.className = 'sync-status offline';
+                syncText.textContent = '📡 Offline';
+            }
         }
 
+        // ============================================
+        // DARK MODE
+        // ============================================
         function toggleTheme() {
             const current = document.documentElement.getAttribute('data-theme');
             const newTheme = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
+            showDebug('🌙 Modo: ' + (newTheme === 'dark' ? 'Oscuro' : 'Claro'));
         }
 
         // ============================================
@@ -1402,11 +1444,21 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        let width = img.width, height = img.height;
-                        if(width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
-                        canvas.width = width; canvas.height = height;
-                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', quality));
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if(width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const compressed = canvas.toDataURL('image/jpeg', quality);
+                        resolve(compressed);
                     };
                     img.onerror = reject;
                 };
@@ -1415,327 +1467,737 @@
         }
 
         // ============================================
-        // OCR
+        // OCR FOR LICENSE PLATES
         // ============================================
         async function ocrMatricula() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
             input.capture = 'environment';
+            
             input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if(!file) return;
+                
                 const ocrResult = document.getElementById('ocrResult');
                 ocrResult.style.display = 'block';
-                ocrResult.textContent = '🔄 Leyendo...';
+                ocrResult.textContent = '🔄 Leyendo matrícula...';
+                
                 try {
                     const { data: { text } } = await Tesseract.recognize(file, 'spa');
                     const matricula = text.match(/[0-9]{4}[A-Z]{3}/i);
+                    
                     if(matricula) {
-                        ocrResult.textContent = '✅ ' + matricula[0].toUpperCase();
+                        ocrResult.textContent = '✅ Matrícula detectada: ' + matricula[0].toUpperCase();
+                        ocrResult.style.background = '#D4EDDA';
+                        ocrResult.style.borderColor = '#28A745';
+                        
                         const current = document.getElementById('matriculas').value;
-                        document.getElementById('matriculas').value = current ? current + ', ' + matricula[0].toUpperCase() : matricula[0].toUpperCase();
+                        document.getElementById('matriculas').value = current ? 
+                            current + ', ' + matricula[0].toUpperCase() : 
+                            matricula[0].toUpperCase();
                     } else {
-                        ocrResult.textContent = '⚠️ No detectada. Texto: ' + text.substring(0, 30);
+                        ocrResult.textContent = '⚠️ No se detectó matrícula. Texto: ' + text.substring(0, 50);
+                        ocrResult.style.background = '#FFF3CD';
+                        ocrResult.style.borderColor = '#FFC107';
                     }
                 } catch(error) {
-                    ocrResult.textContent = '❌ Error: ' + error.message;
+                    ocrResult.textContent = '❌ Error OCR: ' + error.message;
+                    ocrResult.style.background = '#F8D7DA';
+                    ocrResult.style.borderColor = '#DC3545';
                 }
             };
+            
             input.click();
         }
 
         // ============================================
-        // FIREBASE SAVE
+        // FIREBASE SAVE FUNCTIONS
         // ============================================
         async function saveToCloud(data, id) {
             if(!firebaseInitialized || !isOnline || !db) {
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 return id || Date.now().toString();
             }
+
             try {
                 updateSyncStatus('syncing');
-                if(id) await db.collection('atestados').doc(id).update(data);
-                else { const ref = await db.collection('atestados').add(data); return ref.id; }
+                
+                const dataSize = JSON.stringify(data).length;
+                const maxDocSize = 1048576;
+                
+                if(dataSize > maxDocSize) {
+                    showDebug('⚠️ Datos demasiado grandes (' + Math.round(dataSize/1024) + 'KB)');
+                    alert('⚠️ Las fotos ocupan demasiado. Solo local.');
+                    localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                    updateSyncStatus('online');
+                    return id || Date.now().toString();
+                }
+                
+                if(id) {
+                    await db.collection('atestados').doc(id).update(data);
+                } else {
+                    const docRef = await db.collection('atestados').add(data);
+                    return docRef.id;
+                }
+                
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 updateSyncStatus('online');
                 return id;
             } catch(error) {
-                console.error('❌ Error:', error);
+                console.error('❌ Error guardando:', error);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 updateSyncStatus('error');
-                setTimeout(() => updateSyncStatus('online'), 3000);
+                setTimeout(() => {
+                    updateSyncStatus('online');
+                }, 3000);
                 return id || Date.now().toString();
             }
         }
 
         async function deleteFromCloud(id) {
-            if(firebaseInitialized && isOnline && db) {
-                try { await db.collection('atestados').doc(id).delete(); } catch(e) {}
+            if(!firebaseInitialized || !isOnline || !db) return;
+            try {
+                await db.collection('atestados').doc(id).delete();
+            } catch(error) {
+                console.error('❌ Error eliminando:', error);
             }
         }
 
         // ============================================
-        // UI FUNCTIONS
+        // UI HELPER FUNCTIONS
         // ============================================
         function showDebug(msg) {
-            const div = document.getElementById('debugInfo');
-            if(div) { div.textContent = msg; div.style.display = 'block'; }
+            const debugDiv = document.getElementById('debugInfo');
+            if(debugDiv) {
+                debugDiv.textContent = msg;
+                debugDiv.style.display = 'block';
+                console.log('[DEBUG]', msg);
+            }
         }
 
         function updateReferencia() {
-            const num = document.getElementById('numAtestado').value.trim();
-            document.getElementById('displayReferencia').textContent = num ? 'ATESTADO #' + num : 'NUEVO ATESTADO';
+            const numAtestado = document.getElementById('numAtestado').value.trim();
+            const displayRef = document.getElementById('displayReferencia');
+            if(displayRef) {
+                displayRef.textContent = numAtestado ? 'ATESTADO #' + numAtestado : 'NUEVO ATESTADO';
+            }
         }
 
         function renderList(filterText = '') {
             const container = document.getElementById('atestadosList');
             if(!container) return;
+            
             container.innerHTML = '';
+
             const filtered = atestados.filter(a => {
-                const s = `${a.numAtestado} ${a.lugar} ${a.fecha} ${a.matriculas}`.toLowerCase();
-                return s.includes(filterText.toLowerCase());
+                const searchStr = `${a.numAtestado} ${a.lugar} ${a.fecha} ${a.matriculas} ${a.geoAddress || ''}`.toLowerCase();
+                return searchStr.includes(filterText.toLowerCase());
             });
+
             if(filtered.length === 0) {
-                container.innerHTML = '<div style="text-align:center;color:var(--text-sec);margin-top:40px;">📭 No hay atestados</div>';
+                container.innerHTML = '<div style="text-align:center; color:var(--text-sec); margin-top:40px;"><p>📭 No hay atestados</p></div>';
                 return;
             }
+
             filtered.forEach(a => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                const total = a.diligencias ? a.diligencias.length : 0;
-                const completed = a.diligencias ? a.diligencias.filter(d => d.completed).length : 0;
+                
+                const totalDiligencias = a.diligencias ? a.diligencias.length : 0;
+                const diligenciasCompletadas = a.diligencias ? a.diligencias.filter(d => d.completed).length : 0;
+                const ubicacion = a.usoGeo ? `📍 ${a.geoAddress || 'GPS'}` : `📍 ${a.lugar}`;
+                
                 card.innerHTML = `
-                    <div class="card-header"><span class="card-id">#${a.numAtestado}</span><span class="card-date">📅 ${formatDate(a.fecha)}</span></div>
-                    <div class="card-location">📍 ${a.lugar || 'Sin ubicación'}</div>
+                    <div class="card-header">
+                        <span class="card-id">#${a.numAtestado}</span>
+                        <span class="card-date">📅 ${formatDate(a.fecha)} ${a.hora || ''}</span>
+                    </div>
+                    <div class="card-location">${ubicacion}</div>
                     <div class="card-plates">🚗 ${a.matriculas || 'Sin matrículas'}</div>
-                    ${a.instructorCP ? `<div style="font-size:12px;color:var(--text-sec);">👮 ${a.instructorCP}</div>` : ''}
-                    ${total > 0 ? `<div class="card-stats"><span class="stat-badge stat-pending">⏳ ${total-completed}</span><span class="stat-badge stat-completed">✅ ${completed}</span></div>` : ''}
+                    ${a.instructorCP ? `<div style="font-size:12px; color:var(--text-sec);">👮 Instructor: ${a.instructorCP}</div>` : ''}
+                    ${totalDiligencias > 0 ? `
+                        <div class="card-stats">
+                            <span class="stat-badge stat-pending">⏳ ${totalDiligencias - diligenciasCompletadas}</span>
+                            <span class="stat-badge stat-completed">✅ ${diligenciasCompletadas}</span>
+                        </div>
+                    ` : '<div class="card-stats"><span class="stat-badge" style="background:#eee;">📋 Sin diligencias</span></div>'}
                 `;
+                
                 card.onclick = () => openDetail(a.id);
+                card.style.cursor = 'pointer';
                 container.appendChild(card);
             });
         }
 
-        function generateDiligenciaId() { return 'dil_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
+        function generateDiligenciaId() {
+            return 'dil_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
 
         function addDiligencia() {
             const tipo = document.getElementById('tipoDiligencia').value;
             const fecha = document.getElementById('fechaDiligencia').value;
             const hora = document.getElementById('horaDiligencia').value;
-            if(!tipo || !fecha) { alert('❌ Selecciona tipo y fecha'); return; }
-            diligenciasTemp.push({ id: generateDiligenciaId(), tipo, fecha, hora, completed: false, completedDate: null, fotos: [] });
+            
+            if(!tipo || !fecha) {
+                alert('❌ Selecciona tipo y fecha');
+                return;
+            }
+            
+            diligenciasTemp.push({
+                id: generateDiligenciaId(),
+                tipo: tipo,
+                fecha: fecha,
+                hora: hora,
+                completed: false,
+                completedDate: null,
+                fotos: [],
+                recordatorioEnviado: false
+            });
+            
+            showDebug('➕ Diligencia: ' + tipo);
             renderDiligenciasTemp();
             updatePieChart();
+            
             document.getElementById('tipoDiligencia').value = '';
+            document.getElementById('horaDiligencia').value = '09:00';
         }
 
         function renderDiligenciasTemp() {
             const pendientesContainer = document.getElementById('listaPendientes');
             const realizadasContainer = document.getElementById('listaRealizadas');
+            
             if(!pendientesContainer || !realizadasContainer) return;
+            
             const pendientes = diligenciasTemp.filter(d => !d.completed);
             const realizadas = diligenciasTemp.filter(d => d.completed);
+            
             document.getElementById('pendingCount').textContent = pendientes.length;
             document.getElementById('completedCount').textContent = realizadas.length;
             document.getElementById('pendingCountBadge').textContent = pendientes.length;
             document.getElementById('completedCountBadge').textContent = realizadas.length;
-            pendientesContainer.innerHTML = pendientes.length === 0 ? '<div class="empty-message">No hay diligencias pendientes</div>' : '';
-            realizadasContainer.innerHTML = realizadas.length === 0 ? '<div class="empty-message">No hay diligencias realizadas</div>' : '';
-            pendientes.forEach(d => pendientesContainer.appendChild(createDiligenciaElement(d, false)));
-            realizadas.forEach(d => realizadasContainer.appendChild(createDiligenciaElement(d, true)));
+            
+            if(pendientes.length === 0) {
+                pendientesContainer.innerHTML = '<div class="empty-message">No hay diligencias pendientes</div>';
+            } else {
+                pendientesContainer.innerHTML = '';
+                pendientes.forEach((dil) => {
+                    pendientesContainer.appendChild(createDiligenciaElement(dil, false));
+                });
+            }
+            
+            if(realizadas.length === 0) {
+                realizadasContainer.innerHTML = '<div class="empty-message">No hay diligencias realizadas</div>';
+            } else {
+                realizadasContainer.innerHTML = '';
+                realizadas.forEach((dil) => {
+                    realizadasContainer.appendChild(createDiligenciaElement(dil, true));
+                });
+            }
         }
 
         function createDiligenciaElement(dil, isCompleted) {
             const div = document.createElement('div');
             div.className = 'diligencia-item ' + (isCompleted ? 'completed' : 'pending');
+            
             let fotosHtml = '';
             if(dil.fotos && dil.fotos.length > 0) {
-                fotosHtml = '<div class="fotos-section"><div class="fotos-count">📸 ' + dil.fotos.length + ' foto(s)</div><div class="fotos-grid">' + dil.fotos.slice(0,4).map(f => '<img src="'+f+'" class="foto-thumbnail" onclick="event.stopPropagation();showFoto(\''+f+'\')">').join('') + '</div></div>';
+                fotosHtml = `
+                    <div class="fotos-section">
+                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s)</div>
+                        <div class="fotos-grid">
+                            ${dil.fotos.slice(0, 4).map((foto) => `
+                                <img src="${foto}" class="foto-thumbnail" onclick="event.stopPropagation(); showFoto('${foto}')" alt="Foto">
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
             }
-            const completedInfo = isCompleted && dil.completedDate ? '<div class="diligencia-fecha">✅ ' + formatDate(dil.completedDate) + '</div>' : '<div class="diligencia-fecha">📅 ' + formatDate(dil.fecha) + ' - 🕐 ' + (dil.hora || '09:00') + '</div>';
-            div.innerHTML = '<div class="diligencia-header"><div class="diligencia-info"><div class="diligencia-tipo">'+dil.tipo+'</div>'+completedInfo+'</div><span class="diligencia-status '+(isCompleted?'status-completed':'status-pending')+'">'+(isCompleted?'✅ Realizada':'⏳ Pendiente')+'</span></div>'+fotosHtml+'<div class="diligencia-actions"><button class="btn-camera" onclick="event.stopPropagation();showCameraModal(\''+dil.id+'\')">📸</button><button class="btn-calendar" onclick="event.stopPropagation();addCalendarReminder(\''+dil.id+'\')">🔔</button><button class="btn-toggle-status '+(isCompleted?'':'pending')+'" onclick="event.stopPropagation();toggleDiligenciaStatus(\''+dil.id+'\')">'+(isCompleted?'↩️ Pendiente':'✅ Realizada')+'</button><button class="btn-delete-diligencia" onclick="event.stopPropagation();deleteDiligencia(\''+dil.id+'\')">🗑️</button></div>';
+            
+            const completedInfo = isCompleted && dil.completedDate ? 
+                `<div class="diligencia-fecha">✅ Completada: ${formatDate(dil.completedDate)}</div>` : 
+                `<div class="diligencia-fecha">📅 ${formatDate(dil.fecha)} - 🕐 ${dil.hora || '09:00'}</div>`;
+            
+            div.innerHTML = `
+                <div class="diligencia-header">
+                    <div class="diligencia-info">
+                        <div class="diligencia-tipo">${dil.tipo}</div>
+                        ${completedInfo}
+                    </div>
+                    <span class="diligencia-status ${isCompleted ? 'status-completed' : 'status-pending'}">
+                        ${isCompleted ? '✅ Realizada' : '⏳ Pendiente'}
+                    </span>
+                </div>
+                ${fotosHtml}
+                <div class="diligencia-actions">
+                    <button type="button" class="btn-camera" onclick="event.stopPropagation(); showCameraModal('${dil.id}')">📸</button>
+                    <button type="button" class="btn-calendar" onclick="event.stopPropagation(); addCalendarReminder('${dil.id}')">🔔</button>
+                    <button type="button" class="btn-toggle-status ${isCompleted ? '' : 'pending'}" onclick="event.stopPropagation(); toggleDiligenciaStatus('${dil.id}')">
+                        ${isCompleted ? '↩️ Pendiente' : '✅ Realizada'}
+                    </button>
+                    <button type="button" class="btn-delete-diligencia" onclick="event.stopPropagation(); deleteDiligencia('${dil.id}')">🗑️</button>
+                </div>
+            `;
+            
             return div;
         }
 
-        function toggleDiligenciaStatus(id) {
-            const d = diligenciasTemp.find(x => x.id === id);
-            if(d) { d.completed = !d.completed; d.completedDate = d.completed ? new Date().toISOString() : null; renderDiligenciasTemp(); updatePieChart(); }
+        function toggleDiligenciaStatus(diligenciaId) {
+            const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+            if(dil) {
+                dil.completed = !dil.completed;
+                dil.completedDate = dil.completed ? new Date().toISOString() : null;
+                showDebug('🔄 Estado: ' + (dil.completed ? '✅' : '⏳'));
+                renderDiligenciasTemp();
+                updatePieChart();
+            }
         }
 
-        function deleteDiligencia(id) {
-            if(confirm('¿Eliminar?')) { diligenciasTemp = diligenciasTemp.filter(d => d.id !== id); renderDiligenciasTemp(); updatePieChart(); }
+        function deleteDiligencia(diligenciaId) {
+            if(confirm('¿Eliminar diligencia?')) {
+                diligenciasTemp = diligenciasTemp.filter(d => d.id !== diligenciaId);
+                showDebug('🗑️ Diligencia eliminada');
+                renderDiligenciasTemp();
+                updatePieChart();
+            }
         }
 
         function updatePieChart() {
             const total = diligenciasTemp.length;
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            const pct = total > 0 ? Math.round((completed/total)*100) : 0;
-            const deg = total > 0 ? (completed/total)*360 : 0;
-            const chart = document.getElementById('pieChart');
-            if(chart) chart.style.background = deg > 0 ? 'conic-gradient(var(--success) 0deg '+deg+'deg, var(--warning) '+deg+'deg 360deg)' : 'conic-gradient(var(--warning) 0deg 360deg)';
-            document.getElementById('progressPercent').textContent = pct + '%';
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const completedDeg = total > 0 ? (completed / total) * 360 : 0;
+            
+            const pieChart = document.getElementById('pieChart');
+            if(pieChart) {
+                if(completedDeg > 0) {
+                    pieChart.style.background = `conic-gradient(var(--success) 0deg ${completedDeg}deg, var(--warning) ${completedDeg}deg 360deg)`;
+                } else {
+                    pieChart.style.background = `conic-gradient(var(--warning) 0deg 360deg)`;
+                }
+            }
+            
+            document.getElementById('progressPercent').textContent = percentage + '%';
             document.getElementById('completedCount').textContent = completed;
             document.getElementById('pendingCount').textContent = total - completed;
             document.getElementById('completedCountBadge').textContent = completed;
             document.getElementById('pendingCountBadge').textContent = total - completed;
         }
 
-        async function showCameraModal(id) {
-            currentDiligenciaId = id;
-            const dil = diligenciasTemp.find(d => d.id === id);
-            if(dil && dil.fotos.length >= 5) { alert('⚠️ Máximo 5 fotos'); return; }
+        async function showCameraModal(diligenciaId) {
+            currentDiligenciaId = diligenciaId;
+            const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+            
+            if(dil && dil.fotos.length >= 5) {
+                alert('⚠️ Máximo 5 fotos por diligencia');
+                return;
+            }
+            
+            showDebug('📸 Abriendo cámara...');
+            
             const input = document.createElement('input');
-            input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.multiple = true;
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.multiple = true;
+            
             input.onchange = async (e) => {
                 const files = e.target.files;
-                if(files.length > 0 && dil) {
-                    const max = 5 - dil.fotos.length;
-                    for(const file of Array.from(files).slice(0, max)) {
-                        try { dil.fotos.push(await compressImage(file, 800, 0.7)); } catch(err) {}
+                showDebug('📷 ' + files.length + ' fotos seleccionadas');
+                
+                if(files.length > 0) {
+                    const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+                    if(dil) {
+                        const maxFotos = 5 - dil.fotos.length;
+                        const filesToProcess = Array.from(files).slice(0, maxFotos);
+                        
+                        if(files.length > maxFotos) {
+                            alert('⚠️ Solo se añadirán ' + maxFotos + ' fotos (máximo 5)');
+                        }
+                        
+                        let processed = 0;
+                        for(const file of filesToProcess) {
+                            try {
+                                showDebug('🔄 Comprimiendo foto...');
+                                const compressed = await compressImage(file, 800, 0.7);
+                                dil.fotos.push(compressed);
+                                processed++;
+                                showDebug('✅ Foto ' + processed + '/' + filesToProcess.length);
+                            } catch(error) {
+                                console.error('❌ Error comprimiendo:', error);
+                            }
+                        }
+                        showDebug('✅ ' + dil.fotos.length + ' fotos totales');
+                        renderDiligenciasTemp();
                     }
-                    renderDiligenciasTemp();
                 }
             };
+            
             input.click();
         }
 
-        function addCalendarReminder(id) {
-            const d = diligenciasTemp.find(x => x.id === id);
-            if(!d) return;
-            const num = document.getElementById('numAtestado').value || 'XXXX';
-            const date = new Date(d.fecha);
-            if(d.hora) { const [h,m] = d.hora.split(':'); date.setHours(parseInt(h), parseInt(m), 0); }
-            const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Policia Local Palma//ES','BEGIN:VEVENT','UID:'+id+'@atestados','DTSTART:'+date.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z','SUMMARY:Atestado '+num+' - '+d.tipo,'LOCATION:UVAC Palma','BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY','DESCRIPTION:Recordatorio','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
-            const blob = new Blob([ics], {type:'text/calendar'});
+        function addCalendarReminder(diligenciaId) {
+            const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+            if(!dil) return;
+            
+            const atestadoNum = document.getElementById('numAtestado').value || 'XXXX';
+            const title = `Atestado ${atestadoNum} - ${dil.tipo}`;
+            const description = `Diligencia del Atestado #${atestadoNum}\nTipo: ${dil.tipo}\n\nPolicía Local C.P. 0855 UVAC Palma`;
+            
+            const eventDate = new Date(dil.fecha);
+            if(dil.hora) {
+                const [hours, minutes] = dil.hora.split(':');
+                eventDate.setHours(parseInt(hours), parseInt(minutes), 0);
+            }
+            
+            const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000);
+            
+            const icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Policia Local Palma//Atestados//ES',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'BEGIN:VEVENT',
+                `UID:${diligenciaId}@atestados-policia-palma`,
+                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `SUMMARY:${title}`,
+                `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                'LOCATION:UVAC Palma',
+                'BEGIN:VALARM',
+                'TRIGGER:-PT15M',
+                'ACTION:DISPLAY',
+                'DESCRIPTION:Recordatorio de diligencia',
+                'END:VALARM',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\r\n');
+            
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'Recordatorio_'+num+'.ics';
+            link.href = url;
+            link.download = `Recordatorio_${atestadoNum}_${dil.tipo.replace(/\s+/g, '_')}.ics`;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert(`✅ Recordatorio generado\n📅 ${formatDate(dil.fecha)} ${dil.hora}`);
         }
 
-        function showFoto(src) { document.getElementById('modalImg').src = src; document.getElementById('fotoModal').classList.add('active'); }
-        function closeModal() { document.getElementById('fotoModal').classList.remove('active'); }
+        function showFoto(fotoSrc) {
+            document.getElementById('modalImg').src = fotoSrc;
+            document.getElementById('fotoModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('fotoModal').classList.remove('active');
+        }
 
         function setLocationMode(mode) {
             currentLocationMode = mode;
-            document.getElementById('manualLocation').style.display = mode === 'manual' ? 'block' : 'none';
-            document.getElementById('geoLocation').style.display = mode === 'geo' ? 'block' : 'none';
-            document.getElementById('btnManual').classList.toggle('active', mode === 'manual');
-            document.getElementById('btnGeo').classList.toggle('active', mode === 'geo');
+            
+            if(mode === 'manual') {
+                document.getElementById('manualLocation').style.display = 'block';
+                document.getElementById('geoLocation').style.display = 'none';
+                document.getElementById('btnManual').classList.add('active');
+                document.getElementById('btnGeo').classList.remove('active');
+            } else {
+                document.getElementById('manualLocation').style.display = 'none';
+                document.getElementById('geoLocation').style.display = 'block';
+                document.getElementById('btnManual').classList.remove('active');
+                document.getElementById('btnGeo').classList.add('active');
+            }
         }
 
         function getCurrentPosition() {
-            if(!navigator.geolocation) { alert('❌ No soporta GPS'); return; }
+            if(!navigator.geolocation) {
+                alert('❌ Tu dispositivo no soporta geolocalización');
+                return;
+            }
+
             const btn = document.querySelector('.btn-geo');
-            btn.innerHTML = '<span>⏳</span> Obteniendo...'; btn.disabled = true;
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const lat = pos.coords.latitude, lon = pos.coords.longitude;
-                document.getElementById('latValue').textContent = lat.toFixed(6);
-                document.getElementById('lonValue').textContent = lon.toFixed(6);
-                document.getElementById('geoLat').value = lat;
-                document.getElementById('geoLon').value = lon;
-                document.getElementById('geoInfo').classList.add('active');
-                fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lon).then(r=>r.json()).then(d=>{
-                    const addr = d.display_name || 'Dirección no disponible';
-                    document.getElementById('geoAddress').textContent = addr;
-                    document.getElementById('geoFullAddress').value = addr;
-                });
-                btn.innerHTML = '<span>✅</span> Ubicación Obtenida'; btn.disabled = false;
-            }, (err) => { alert('❌ Error: '+err.message); btn.innerHTML = '<span>📍</span> Obtener GPS'; btn.disabled = false; }, {enableHighAccuracy:true, timeout:10000});
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Obteniendo...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    document.getElementById('latValue').textContent = lat.toFixed(6);
+                    document.getElementById('lonValue').textContent = lon.toFixed(6);
+                    document.getElementById('geoLat').value = lat;
+                    document.getElementById('geoLon').value = lon;
+                    document.getElementById('geoInfo').classList.add('active');
+                    
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const address = data.display_name || 'Dirección no disponible';
+                            document.getElementById('geoAddress').textContent = address;
+                            document.getElementById('geoFullAddress').value = address;
+                        })
+                        .catch(() => {
+                            document.getElementById('geoAddress').textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                            document.getElementById('geoFullAddress').value = `Lat: ${lat}, Lon: ${lon}`;
+                        });
+                    
+                    btn.innerHTML = '<span>✅</span> Ubicación Obtenida';
+                    btn.disabled = false;
+                    showDebug('📍 GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
+                },
+                (error) => {
+                    alert('❌ Error GPS: ' + error.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
         }
 
         // ============================================
-        // IMPLICADOS
+        // IMPLICADOS MANAGEMENT
         // ============================================
         function addImplicado() {
-            implicadosTemp.push({ id: 'imp_'+Date.now(), tipo: 'Conductor', nombre: '', dni: '', telefono: '', seguro: '', aseguradora: '', vehiculo: '', declaraciones: '' });
+            const id = 'imp_' + Date.now();
+            implicadosTemp.push({
+                id: id,
+                tipo: 'Conductor',
+                nombre: '',
+                dni: '',
+                telefono: '',
+                seguro: '',
+                aseguradora: '',
+                vehiculo: '',
+                declaraciones: ''
+            });
             renderImplicados();
         }
 
         function renderImplicados() {
-            const c = document.getElementById('implicadosContainer');
-            if(!c) return;
-            if(implicadosTemp.length === 0) { c.innerHTML = '<div class="empty-message">No hay implicados</div>'; return; }
-            c.innerHTML = '';
-            implicadosTemp.forEach(imp => {
+            const container = document.getElementById('implicadosContainer');
+            if(!container) return;
+            
+            if(implicadosTemp.length === 0) {
+                container.innerHTML = '<div class="empty-message">No hay implicados registrados</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            implicadosTemp.forEach((imp, index) => {
                 const card = document.createElement('div');
                 card.className = 'implicado-card';
-                card.innerHTML = '<div class="implicado-header"><span class="implicado-type">'+imp.tipo+'</span><button class="btn-delete-diligencia" onclick="deleteImplicado(\''+imp.id+'\')" style="padding:5px 10px;">🗑️</button></div><div class="form-row"><div class="form-group"><label>Nombre</label><input type="text" value="'+imp.nombre+'" onchange="updateImplicado(\''+imp.id+'\',\'nombre\',this.value)"></div><div class="form-group"><label>DNI</label><input type="text" value="'+imp.dni+'" onchange="updateImplicado(\''+imp.id+'\',\'dni\',this.value)"></div></div><div class="form-row"><div class="form-group"><label>Teléfono</label><input type="tel" value="'+imp.telefono+'" onchange="updateImplicado(\''+imp.id+'\',\'telefono\',this.value)"></div><div class="form-group"><label>Tipo</label><select onchange="updateImplicado(\''+imp.id+'\',\'tipo\',this.value)"><option value="Conductor" '+(imp.tipo==='Conductor'?'selected':'')+' >Conductor</option><option value="Peatón" '+(imp.tipo==='Peatón'?'selected':'')+' >Peatón</option><option value="Testigo" '+(imp.tipo==='Testigo'?'selected':'')+' >Testigo</option><option value="Pasajero" '+(imp.tipo==='Pasajero'?'selected':'')+' >Pasajero</option></select></div></div><div class="form-row"><div class="form-group"><label>Aseguradora</label><input type="text" value="'+imp.aseguradora+'" onchange="updateImplicado(\''+imp.id+'\',\'aseguradora\',this.value)"></div><div class="form-group"><label>Póliza</label><input type="text" value="'+imp.seguro+'" onchange="updateImplicado(\''+imp.id+'\',\'seguro\',this.value)"></div></div><div class="form-group"><label>Vehículo</label><input type="text" value="'+imp.vehiculo+'" onchange="updateImplicado(\''+imp.id+'\',\'vehiculo\',this.value)"></div><div class="form-group"><label>Declaración</label><textarea onchange="updateImplicado(\''+imp.id+'\',\'declaraciones\',this.value)">'+imp.declaraciones+'</textarea></div>';
-                c.appendChild(card);
+                card.innerHTML = `
+                    <div class="implicado-header">
+                        <span class="implicado-type">${imp.tipo}</span>
+                        <button type="button" class="btn-delete-diligencia" onclick="deleteImplicado('${imp.id}')" style="padding:5px 10px;">🗑️</button>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" value="${imp.nombre}" onchange="updateImplicado('${imp.id}', 'nombre', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>DNI/NIE</label>
+                            <input type="text" value="${imp.dni}" onchange="updateImplicado('${imp.id}', 'dni', this.value)">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="tel" value="${imp.telefono}" onchange="updateImplicado('${imp.id}', 'telefono', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select onchange="updateImplicado('${imp.id}', 'tipo', this.value)">
+                                <option value="Conductor" ${imp.tipo === 'Conductor' ? 'selected' : ''}>Conductor</option>
+                                <option value="Peatón" ${imp.tipo === 'Peatón' ? 'selected' : ''}>Peatón</option>
+                                <option value="Testigo" ${imp.tipo === 'Testigo' ? 'selected' : ''}>Testigo</option>
+                                <option value="Pasajero" ${imp.tipo === 'Pasajero' ? 'selected' : ''}>Pasajero</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Aseguradora</label>
+                            <input type="text" value="${imp.aseguradora}" onchange="updateImplicado('${imp.id}', 'aseguradora', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Nº Póliza</label>
+                            <input type="text" value="${imp.seguro}" onchange="updateImplicado('${imp.id}', 'seguro', this.value)">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Matrícula Vehículo</label>
+                        <input type="text" value="${imp.vehiculo}" onchange="updateImplicado('${imp.id}', 'vehiculo', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Declaración</label>
+                        <textarea onchange="updateImplicado('${imp.id}', 'declaraciones', this.value)">${imp.declaraciones}</textarea>
+                    </div>
+                `;
+                container.appendChild(card);
             });
         }
 
-        function updateImplicado(id, f, v) { const i = implicadosTemp.find(x => x.id === id); if(i) i[f] = v; }
-        function deleteImplicado(id) { if(confirm('¿Eliminar?')) { implicadosTemp = implicadosTemp.filter(i => i.id !== id); renderImplicados(); } }
+        function updateImplicado(id, field, value) {
+            const imp = implicadosTemp.find(i => i.id === id);
+            if(imp) imp[field] = value;
+        }
+
+        function deleteImplicado(id) {
+            if(confirm('¿Eliminar implicado?')) {
+                implicadosTemp = implicadosTemp.filter(i => i.id !== id);
+                renderImplicados();
+            }
+        }
 
         // ============================================
-        // STATS
+        // STATS DASHBOARD
         // ============================================
         function showStats() {
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('statsView').style.display = 'block';
-            window.scrollTo(0,0);
+            window.scrollTo(0, 0);
+            
             const total = atestados.length;
             const now = new Date();
-            const thisMonth = atestados.filter(a => { const d = new Date(a.fecha); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
-            const pending = atestados.reduce((acc,a) => acc + (a.diligencias ? a.diligencias.filter(d => !d.completed).length : 0), 0);
+            const thisMonth = atestados.filter(a => {
+                const d = new Date(a.fecha);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            }).length;
+            
+            const pending = atestados.reduce((acc, a) => {
+                return acc + (a.diligencias ? a.diligencias.filter(d => !d.completed).length : 0);
+            }, 0);
+            
             const agents = [...new Set(atestados.map(a => a.agentName).filter(n => n))].length;
+            
             document.getElementById('statTotal').textContent = total;
             document.getElementById('statThisMonth').textContent = thisMonth;
             document.getElementById('statPending').textContent = pending;
             document.getElementById('statAgents').textContent = agents;
-            const weeks = [0,0,0,0];
-            atestados.forEach(a => { const d = new Date(a.fecha); const w = Math.floor((now-d)/(7*24*60*60*1000)); if(w<4) weeks[3-w]++; });
-            const maxW = Math.max(...weeks,1);
-            document.getElementById('weekChart').innerHTML = weeks.map((v,i) => '<div class="bar" style="height:'+((v/maxW)*150)+'px"><span class="bar-value">'+v+'</span><span class="bar-label">Sem '+(i+1)+'</span></div>').join('');
+            
+            // Week chart
+            const weeks = [0, 0, 0, 0];
+            atestados.forEach(a => {
+                const d = new Date(a.fecha);
+                const diffWeeks = Math.floor((now - d) / (7 * 24 * 60 * 60 * 1000));
+                if(diffWeeks < 4) weeks[3 - diffWeeks]++;
+            });
+            
+            const maxWeek = Math.max(...weeks, 1);
+            document.getElementById('weekChart').innerHTML = weeks.map((v, i) => `
+                <div class="bar" style="height: ${(v / maxWeek) * 150}px;">
+                    <span class="bar-value">${v}</span>
+                    <span class="bar-label">Sem ${i + 1}</span>
+                </div>
+            `).join('');
+            
+            // Hour chart
             const hours = {};
-            atestados.forEach(a => { const h = a.hora ? parseInt(a.hora.split(':')[0]) : 12; hours[h] = (hours[h]||0)+1; });
-            const peak = Object.entries(hours).sort((a,b)=>b[1]-a[1]).slice(0,5);
-            const maxH = Math.max(...peak.map(h=>h[1]),1);
-            document.getElementById('hourChart').innerHTML = peak.map(([h,v]) => '<div class="bar" style="height:'+((v/maxH)*150)+'px"><span class="bar-value">'+v+'</span><span class="bar-label">'+h+':00</span></div>').join('');
-            const locs = {};
-            atestados.forEach(a => { const l = a.lugar || 'Sin ubicación'; locs[l] = (locs[l]||0)+1; });
-            const top = Object.entries(locs).sort((a,b)=>b[1]-a[1]).slice(0,5);
-            document.getElementById('topLocations').innerHTML = top.map(([l,c],i) => '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span>'+(i+1)+'. '+l.substring(0,40)+(l.length>40?'...':'')+'</span><strong>'+c+'</strong></div>').join('');
+            atestados.forEach(a => {
+                const h = a.hora ? parseInt(a.hora.split(':')[0]) : 12;
+                hours[h] = (hours[h] || 0) + 1;
+            });
+            
+            const peakHours = Object.entries(hours)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            const maxHour = Math.max(...peakHours.map(h => h[1]), 1);
+            document.getElementById('hourChart').innerHTML = peakHours.map(([h, v]) => `
+                <div class="bar" style="height: ${(v / maxHour) * 150}px;">
+                    <span class="bar-value">${v}</span>
+                    <span class="bar-label">${h}:00</span>
+                </div>
+            `).join('');
+            
+            // Top locations
+            const locations = {};
+            atestados.forEach(a => {
+                const loc = a.lugar || 'Sin ubicación';
+                locations[loc] = (locations[loc] || 0) + 1;
+            });
+            
+            const topLocations = Object.entries(locations)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            document.getElementById('topLocations').innerHTML = topLocations.map(([loc, count], i) => `
+                <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+                    <span>${i + 1}. ${loc.substring(0, 40)}${loc.length > 40 ? '...' : ''}</span>
+                    <strong>${count}</strong>
+                </div>
+            `).join('');
         }
 
         // ============================================
-        // MAP
+        // MAP VIEW
         // ============================================
         function showMap() {
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('mapView').style.display = 'block';
-            window.scrollTo(0,0);
+            window.scrollTo(0, 0);
+            
             setTimeout(() => {
-                if(map) map.remove();
+                if(map) {
+                    map.remove();
+                }
+                
                 map = L.map('map').setView([39.5696, 2.6502], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                
                 atestados.forEach(a => {
-                    if(a.geoLat && a.geoLon) L.marker([parseFloat(a.geoLat), parseFloat(a.geoLon)]).addTo(map).bindPopup('<strong>#'+a.numAtestado+'</strong><br>'+a.fecha+'<br>'+a.lugar);
+                    if(a.geoLat && a.geoLon) {
+                        L.marker([parseFloat(a.geoLat), parseFloat(a.geoLon)])
+                            .addTo(map)
+                            .bindPopup(`<strong>#${a.numAtestado}</strong><br>${a.fecha}<br>${a.lugar}`);
+                    }
                 });
             }, 100);
         }
 
         // ============================================
-        // QR
+        // QR CODE
         // ============================================
         function showQR() {
-            const num = document.getElementById('numAtestado').value;
-            if(!num) { alert('❌ Guarda primero'); return; }
+            const numAtestado = document.getElementById('numAtestado').value;
+            if(!numAtestado) {
+                alert('❌ Guarda el atestado primero');
+                return;
+            }
+            
             document.getElementById('qrContainer').innerHTML = '';
-            new QRCode(document.getElementById('qrContainer'), { text: 'Atestado #'+num+'\nPolicía Local C.P. 0855\n'+new Date().toLocaleDateString(), width: 200, height: 200 });
+            new QRCode(document.getElementById('qrContainer'), {
+                text: `Atestado #${numAtestado}\nPolicía Local C.P. 0855\n${new Date().toLocaleDateString()}`,
+                width: 200,
+                height: 200
+            });
+            
             document.getElementById('qrModal').classList.add('active');
         }
-        function closeQR() { document.getElementById('qrModal').classList.remove('active'); }
+
+        function closeQR() {
+            document.getElementById('qrModal').classList.remove('active');
+        }
 
         // ============================================
-        // PDF
+        // PDF GENERATION - COMPLETE VERSION
         // ============================================
         function generatePDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
-            const num = document.getElementById('numAtestado').value || 'S/N';
+            
+            const numAtestado = document.getElementById('numAtestado').value || 'S/N';
             const fecha = document.getElementById('fechaSiniestro').value;
             const hora = document.getElementById('horaSiniestro').value;
             const lugar = document.getElementById('lugarSiniestro').value;
@@ -1745,34 +2207,39 @@
             const geoLat = document.getElementById('geoLat').value;
             const geoLon = document.getElementById('geoLon').value;
             
+            // Header
             doc.setFillColor(26, 35, 126);
             doc.rect(0, 0, 210, 35, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(22);
             doc.setFont('helvetica', 'bold');
-            doc.text('POLICÍA LOCAL', 105, 15, {align:'center'});
+            doc.text('POLICÍA LOCAL', 105, 15, { align: 'center' });
             doc.setFontSize(14);
             doc.setFont('helvetica', 'normal');
-            doc.text('C.P. 0855 - UVAC PALMA', 105, 23, {align:'center'});
+            doc.text('C.P. 0855 - UVAC PALMA', 105, 23, { align: 'center' });
             doc.setFontSize(11);
-            doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, {align:'center'});
+            doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, { align: 'center' });
             
+            // Info box
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(10);
             doc.setDrawColor(200, 200, 200);
             doc.setFillColor(245, 245, 245);
             doc.rect(15, 40, 180, 35, 'FD');
             doc.setFont('helvetica', 'bold');
-            doc.text('Nº ATESTADO: '+num, 20, 48);
-            doc.text('FECHA: '+fecha, 120, 48);
+            doc.text('Nº ATESTADO: ' + numAtestado, 20, 48);
+            doc.text('FECHA: ' + fecha, 120, 48);
             doc.setFont('helvetica', 'normal');
-            doc.text('HORA: '+hora, 20, 55);
-            doc.text('LUGAR: '+lugar, 20, 62);
-            if(geoLat && geoLon) doc.text('GPS: '+parseFloat(geoLat).toFixed(6)+', '+parseFloat(geoLon).toFixed(6), 120, 55);
+            doc.text('HORA: ' + hora, 20, 55);
+            doc.text('LUGAR: ' + lugar, 20, 62);
+            if(geoLat && geoLon) {
+                doc.text('GPS: ' + parseFloat(geoLat).toFixed(6) + ', ' + parseFloat(geoLon).toFixed(6), 120, 55);
+            }
             doc.setFont('helvetica', 'bold');
-            doc.text('INSTRUCTOR C.P.: '+instructor, 20, 69);
-            doc.text('SECRETARIO C.P.: '+secretario, 120, 69);
+            doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 69);
+            doc.text('SECRETARIO C.P.: ' + secretario, 120, 69);
             
+            // Vehicles
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
             doc.text('VEHÍCULOS IMPLICADOS', 15, 82);
@@ -1780,87 +2247,129 @@
             doc.line(15, 84, 195, 84);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.text(matriculas || 'Sin matrículas', 15, 90);
+            doc.text(matriculas || 'Sin matrículas registradas', 15, 90);
             
+            // Implicados
             let yPos = 100;
             if(implicadosTemp && implicadosTemp.length > 0) {
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.text('IMPLICADOS', 15, yPos);
                 doc.setDrawColor(26, 35, 126);
-                doc.line(15, yPos+2, 195, yPos+2);
+                doc.line(15, yPos + 2, 195, yPos + 2);
                 yPos += 10;
+                
                 implicadosTemp.forEach((imp, i) => {
-                    if(yPos > 250) { doc.addPage(); yPos = 20; }
+                    if(yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
                     doc.setFont('helvetica', 'bold');
-                    doc.text((i+1)+'. '+(imp.nombre || 'Sin nombre')+' ('+imp.tipo+')', 15, yPos);
+                    doc.text((i + 1) + '. ' + (imp.nombre || 'Sin nombre') + ' (' + imp.tipo + ')', 15, yPos);
                     doc.setFont('helvetica', 'normal');
-                    doc.text('DNI: '+(imp.dni || 'N/A'), 15, yPos+5);
-                    doc.text('Tel: '+(imp.telefono || 'N/A'), 100, yPos+5);
-                    doc.text('Vehículo: '+(imp.vehiculo || 'N/A'), 15, yPos+10);
-                    doc.text('Aseguradora: '+(imp.aseguradora || 'N/A'), 100, yPos+10);
-                    doc.text('Póliza: '+(imp.seguro || 'N/A'), 15, yPos+15);
-                    if(imp.declaraciones) { doc.setFont('helvetica', 'italic'); const s = doc.splitTextToSize('"'+imp.declaraciones+'"', 180); doc.text(s, 15, yPos+22); yPos += 22+(s.length*5); } else { yPos += 20; }
+                    doc.text('DNI/NIE: ' + (imp.dni || 'N/A'), 15, yPos + 5);
+                    doc.text('Teléfono: ' + (imp.telefono || 'N/A'), 100, yPos + 5);
+                    doc.text('Vehículo: ' + (imp.vehiculo || 'N/A'), 15, yPos + 10);
+                    doc.text('Aseguradora: ' + (imp.aseguradora || 'N/A'), 100, yPos + 10);
+                    doc.text('Póliza: ' + (imp.seguro || 'N/A'), 15, yPos + 15);
+                    
+                    if(imp.declaraciones) {
+                        doc.setFont('helvetica', 'italic');
+                        const splitDecl = doc.splitTextToSize('"' + imp.declaraciones + '"', 180);
+                        doc.text(splitDecl, 15, yPos + 22);
+                        yPos += 22 + (splitDecl.length * 5);
+                    } else {
+                        yPos += 20;
+                    }
                 });
             }
             
+            // Diligencias
             yPos += 5;
-            if(yPos > 250) { doc.addPage(); yPos = 20; }
+            if(yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text('DILIGENCIAS', 15, yPos);
+            doc.text('DILIGENCIAS PRACTICADAS', 15, yPos);
             doc.setDrawColor(26, 35, 126);
-            doc.line(15, yPos+2, 195, yPos+2);
+            doc.line(15, yPos + 2, 195, yPos + 2);
             yPos += 10;
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
+            
             if(diligenciasTemp && diligenciasTemp.length > 0) {
                 diligenciasTemp.forEach((d, i) => {
-                    if(yPos > 270) { doc.addPage(); yPos = 20; }
-                    const st = d.completed ? '☑' : '☐';
-                    const cd = d.completed && d.completedDate ? ' ('+new Date(d.completedDate).toLocaleDateString()+')' : '';
-                    doc.text(st+' '+(i+1)+'. '+d.tipo+' - '+d.fecha+cd, 15, yPos);
+                    if(yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    const status = d.completed ? '☑' : '☐';
+                    const completedDate = d.completed && d.completedDate ? 
+                        ' (' + new Date(d.completedDate).toLocaleDateString() + ')' : '';
+                    
+                    doc.text(status + ' ' + (i + 1) + '. ' + d.tipo + ' - ' + d.fecha + completedDate, 15, yPos);
                     yPos += 6;
                 });
-            } else { doc.text('Sin diligencias', 15, yPos); yPos += 6; }
+            } else {
+                doc.text('No hay diligencias registradas', 15, yPos);
+                yPos += 6;
+            }
             
-            const totalFotos = diligenciasTemp.reduce((acc,d) => acc + (d.fotos ? d.fotos.length : 0), 0);
+            // Photos count
             yPos += 5;
+            const totalFotos = diligenciasTemp.reduce((acc, d) => acc + (d.fotos ? d.fotos.length : 0), 0);
             doc.setFont('helvetica', 'bold');
-            doc.text('FOTOGRAFÍAS: '+totalFotos, 15, yPos);
+            doc.text('FOTOGRAFÍAS ADJUNTAS: ' + totalFotos, 15, yPos);
             
+            // QR Code
             yPos += 10;
-            const qrData = 'Atestado #'+num+'\nPolicía Local C.P. 0855\n'+fecha+' '+hora+'\n'+lugar;
+            if(yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            const qrData = 'Atestado #' + numAtestado + '\nPolicía Local C.P. 0855\n' + fecha + ' ' + hora + '\n' + lugar;
             const canvas = document.createElement('canvas');
-            QRCode.toCanvas(canvas, qrData, {width:80}, () => {
-                doc.addImage(canvas.toDataURL('image/png'), 'PNG', 140, yPos-5, 40, 40);
+            QRCode.toCanvas(canvas, qrData, { width: 80 }, function(error) {
+                if(error) console.error(error);
+                const qrImg = canvas.toDataURL('image/png');
+                doc.addImage(qrImg, 'PNG', 140, yPos - 5, 40, 40);
             });
             
+            // Signatures
             yPos = 240;
             doc.setDrawColor(0, 0, 0);
             doc.line(20, yPos, 90, yPos);
             doc.line(120, yPos, 190, yPos);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
-            doc.text('Firma Instructor', 55, yPos+5);
-            doc.text('Firma Secretario', 155, yPos+5);
+            doc.text('Firma del Instructor', 55, yPos + 5);
+            doc.text('Firma del Secretario', 155, yPos + 5);
             
+            // Footer
             doc.setFillColor(26, 35, 126);
             doc.rect(0, 280, 210, 15, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(8);
-            doc.text('Policía Local de Palma - C.P. 0855', 105, 287, {align:'center'});
-            doc.text('UVAC - Unidad de Valoración y Atención Continuada', 105, 292, {align:'center'});
-            const pages = doc.internal.getNumberOfPages();
-            doc.text('Página 1 de '+pages, 105, 297, {align:'center'});
+            doc.text('Policía Local de Palma - C.P. 0855', 105, 287, { align: 'center' });
+            doc.text('UVAC - Unidad de Valoración y Atención Continuada', 105, 292, { align: 'center' });
+            const pageCount = doc.internal.getNumberOfPages();
+            doc.text('Página 1 de ' + pageCount, 105, 297, { align: 'center' });
             
-            doc.save('Atestado_'+num+'_'+fecha+'.pdf');
+            doc.save('Atestado_' + numAtestado + '_' + fecha + '.pdf');
         }
 
         // ============================================
         // MAIN FUNCTIONS
         // ============================================
-        function filterAtestados() { renderList(document.getElementById('searchInput').value); }
+        function filterAtestados() {
+            renderList(document.getElementById('searchInput').value);
+        }
 
         function createNewAtestado() {
             document.getElementById('currentId').value = '';
@@ -1876,49 +2385,62 @@
             document.getElementById('geoFullAddress').value = '';
             document.getElementById('geoInfo').classList.remove('active');
             setLocationMode('manual');
+            
             diligenciasTemp = [];
             implicadosTemp = [];
             renderDiligenciasTemp();
             renderImplicados();
             updatePieChart();
             updateReferencia();
+            
             document.getElementById('deleteSection').style.display = 'none';
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
             window.scrollTo(0, 0);
+            showDebug('➕ Nuevo atestado creado');
         }
 
         function openDetail(id) {
-            const a = atestados.find(x => x.id === id);
-            if(!a) return;
-            document.getElementById('currentId').value = a.id;
-            document.getElementById('numAtestado').value = a.numAtestado;
-            document.getElementById('instructorCP').value = a.instructorCP || '';
-            document.getElementById('secretarioCP').value = a.secretarioCP || '';
-            document.getElementById('fechaSiniestro').value = a.fecha;
-            document.getElementById('horaSiniestro').value = a.hora || '09:00';
+            const atestado = atestados.find(a => a.id === id);
+            if(!atestado) {
+                showDebug('❌ No se encontró: ' + id);
+                return;
+            }
+
+            showDebug('📂 Abriendo: #' + atestado.numAtestado);
+
+            document.getElementById('currentId').value = atestado.id;
+            document.getElementById('numAtestado').value = atestado.numAtestado;
+            document.getElementById('instructorCP').value = atestado.instructorCP || '';
+            document.getElementById('secretarioCP').value = atestado.secretarioCP || '';
+            document.getElementById('fechaSiniestro').value = atestado.fecha;
+            document.getElementById('horaSiniestro').value = atestado.hora || '09:00';
             updateReferencia();
-            if(a.usoGeo) {
+            
+            if(atestado.usoGeo) {
                 setLocationMode('geo');
-                document.getElementById('geoLat').value = a.geoLat || '';
-                document.getElementById('geoLon').value = a.geoLon || '';
-                document.getElementById('geoFullAddress').value = a.geoAddress || '';
-                if(a.geoLat) {
-                    document.getElementById('latValue').textContent = parseFloat(a.geoLat).toFixed(6);
-                    document.getElementById('lonValue').textContent = parseFloat(a.geoLon).toFixed(6);
-                    document.getElementById('geoAddress').textContent = a.geoAddress || 'GPS';
+                document.getElementById('geoLat').value = atestado.geoLat || '';
+                document.getElementById('geoLon').value = atestado.geoLon || '';
+                document.getElementById('geoFullAddress').value = atestado.geoAddress || '';
+                if(atestado.geoLat) {
+                    document.getElementById('latValue').textContent = parseFloat(atestado.geoLat).toFixed(6);
+                    document.getElementById('lonValue').textContent = parseFloat(atestado.geoLon).toFixed(6);
+                    document.getElementById('geoAddress').textContent = atestado.geoAddress || 'GPS';
                     document.getElementById('geoInfo').classList.add('active');
                 }
             } else {
                 setLocationMode('manual');
-                document.getElementById('lugarSiniestro').value = a.lugar;
+                document.getElementById('lugarSiniestro').value = atestado.lugar;
             }
-            document.getElementById('matriculas').value = a.matriculas || '';
-            diligenciasTemp = a.diligencias ? JSON.parse(JSON.stringify(a.diligencias)) : [];
-            implicadosTemp = a.implicados ? JSON.parse(JSON.stringify(a.implicados)) : [];
+            
+            document.getElementById('matriculas').value = atestado.matriculas || '';
+            diligenciasTemp = atestado.diligencias ? JSON.parse(JSON.stringify(atestado.diligencias)) : [];
+            implicadosTemp = atestado.implicados ? JSON.parse(JSON.stringify(atestado.implicados)) : [];
+            
             renderDiligenciasTemp();
             renderImplicados();
             updatePieChart();
+            
             document.getElementById('deleteSection').style.display = diligenciasTemp.length > 0 ? 'block' : 'none';
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
@@ -1934,20 +2456,32 @@
         }
 
         async function saveAtestado() {
-            const num = document.getElementById('numAtestado').value.trim();
+            const numAtestado = document.getElementById('numAtestado').value.trim();
             const fecha = document.getElementById('fechaSiniestro').value;
             const hora = document.getElementById('horaSiniestro').value;
             const instructor = document.getElementById('instructorCP').value.trim();
             const secretario = document.getElementById('secretarioCP').value.trim();
-            if(!num || !fecha || !hora || !instructor || !secretario) { alert('❌ Completa campos obligatorios'); return; }
+            
+            if(!numAtestado || !fecha || !hora || !instructor || !secretario) {
+                alert('❌ Completa campos obligatorios');
+                return;
+            }
+            
             const id = document.getElementById('currentId').value;
             const usoGeo = currentLocationMode === 'geo';
-            const lugar = usoGeo ? (document.getElementById('geoFullAddress').value || 'GPS') : document.getElementById('lugarSiniestro').value.trim();
+            const lugar = usoGeo ? 
+                (document.getElementById('geoFullAddress').value || 'GPS') : 
+                document.getElementById('lugarSiniestro').value.trim();
+            
             const newData = {
-                numAtestado: num, fecha, hora, lugar,
-                instructorCP: instructor, secretarioCP: secretario,
+                numAtestado: numAtestado,
+                fecha: fecha,
+                hora: hora,
+                lugar: lugar,
+                instructorCP: instructor,
+                secretarioCP: secretario,
                 matriculas: document.getElementById('matriculas').value.trim(),
-                usoGeo,
+                usoGeo: usoGeo,
                 geoLat: document.getElementById('geoLat').value,
                 geoLon: document.getElementById('geoLon').value,
                 geoAddress: document.getElementById('geoFullAddress').value,
@@ -1958,21 +2492,35 @@
                 organizacion: 'Policía Local C.P. 0855 UVAC Palma',
                 fechaModificacion: new Date().toISOString()
             };
+
+            showDebug('💾 Guardando #' + numAtestado);
+
             const savedId = await saveToCloud(newData, id);
-            if(!id) { newData.id = savedId; atestados.push(newData); }
-            else { const idx = atestados.findIndex(x => x.id === id); if(idx !== -1) atestados[idx] = {...atestados[idx], ...newData, id}; }
+            
+            if(!id) {
+                newData.id = savedId;
+                atestados.push(newData);
+            } else {
+                const index = atestados.findIndex(a => a.id === id);
+                if(index !== -1) {
+                    atestados[index] = { ...atestados[index], ...newData, id };
+                }
+            }
+
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            alert('✅ Atestado #'+num+' GUARDADO\n📋 '+diligenciasTemp.length+' diligencia(s)\n👥 '+implicadosTemp.length+' implicado(s)\n✅ '+completed+' realizada(s)');
+            alert('✅ Atestado #' + numAtestado + ' GUARDADO\n📋 ' + diligenciasTemp.length + ' diligencia(s)\n👥 ' + implicadosTemp.length + ' implicado(s)\n✅ ' + completed + ' realizada(s)');
             goBack();
         }
 
         async function deleteAtestado() {
             const id = document.getElementById('currentId').value;
-            const a = atestados.find(x => x.id === id);
-            if(!a) return;
-            if(confirm('⚠️ ¿Eliminar Atestado #'+a.numAtestado+'?')) {
+            const atestado = atestados.find(a => a.id === id);
+            
+            if(!atestado) return;
+            
+            if(confirm('⚠️ ¿Eliminar Atestado #' + atestado.numAtestado + '?')) {
                 await deleteFromCloud(id);
-                atestados = atestados.filter(x => x.id !== id);
+                atestados = atestados.filter(a => a.id !== id);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 alert('🗑️ Eliminado');
                 goBack();
@@ -1980,32 +2528,69 @@
         }
 
         function exportToExcel() {
-            if(atestados.length === 0) { alert('❌ No hay atestados'); return; }
-            let csv = 'text/csv;charset=utf-8,Organizacion,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Matriculas,Implicados,Diligencias\n';
+            if(atestados.length === 0) {
+                alert('❌ No hay atestados');
+                return;
+            }
+            
+            let csv = 'text/csv;charset=utf-8,';
+            csv += 'Organizacion,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Matriculas,Implicados,Diligencias\n';
+            
             atestados.forEach(a => {
-                const imp = (a.implicados||[]).map(i => i.tipo+':'+i.nombre).join('; ');
-                const dil = (a.diligencias||[]).map(d => d.tipo+':'+(d.completed?'HECHO':'PENDIENTE')).join('; ');
-                csv += '"'+a.organizacion+'","'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'","'+a.matriculas+'","'+imp+'","'+dil+'"\n';
+                const implicados = (a.implicados || []).map(i => i.tipo + ':' + i.nombre).join('; ');
+                const diligencias = (a.diligencias || []).map(d => d.tipo + ':' + (d.completed ? 'HECHO' : 'PENDIENTE')).join('; ');
+                
+                csv += '"' + a.organizacion + '","' + a.numAtestado + '","' + a.fecha + '","' + a.hora + '","' + a.lugar + '","' + a.instructorCP + '","' + a.secretarioCP + '","' + a.matriculas + '","' + implicados + '","' + diligencias + '"\n';
             });
+
             const link = document.createElement('a');
             link.href = encodeURI(csv);
-            link.download = 'Atestados_'+new Date().toISOString().split('T')[0]+'.csv';
+            link.download = 'Atestados_' + new Date().toISOString().split('T')[0] + '.csv';
             link.click();
+            alert('✅ Exportado ' + atestados.length + ' atestado(s)');
         }
 
-        function formatDate(s) { if(!s) return ''; return new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}); }
+        function formatDate(dateString) {
+            if(!dateString) return '';
+            return new Date(dateString).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
 
         // ============================================
-        // INIT
+        // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
-            const theme = localStorage.getItem('theme');
-            if(theme) document.documentElement.setAttribute('data-theme', theme);
+            showDebug('🚀 Iniciando aplicación...');
+            
+            const savedTheme = localStorage.getItem('theme');
+            if(savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+            
             checkLogin();
-            window.addEventListener('online', () => { isOnline = true; updateSyncStatus('online'); });
-            window.addEventListener('offline', () => { isOnline = false; updateSyncStatus('offline'); });
-            const fi = document.getElementById('fechaDiligencia');
-            if(fi) fi.valueAsDate = new Date();
+            
+            window.addEventListener('online', () => { 
+                isOnline = true; 
+                showDebug('🌐 Conexión restaurada');
+                updateSyncStatus('online');
+            });
+            window.addEventListener('offline', () => { 
+                isOnline = false; 
+                showDebug('📡 Sin conexión');
+                updateSyncStatus('offline');
+            });
+            
+            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
+            
+            const fechaInput = document.getElementById('fechaDiligencia');
+            if(fechaInput) {
+                fechaInput.valueAsDate = new Date();
+            }
+            
+            showDebug('✅ Aplicación lista');
         });
     </script>
 </body>
