@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestión Atestados - Policía Local Palma</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         :root {
             --bg-color: #F2F2F7;
@@ -97,7 +102,7 @@
         select {
             cursor: pointer;
             appearance: none;
-            background-image: url("image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 15px center;
             padding-right: 40px;
@@ -596,7 +601,6 @@
             cursor: pointer;
         }
 
-        /* Gráfico de Tarta */
         .pie-chart-container {
             display: flex;
             align-items: center;
@@ -706,6 +710,49 @@
             opacity: 0.9;
         }
 
+        .sync-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .sync-status.online {
+            background: #34C759;
+            color: white;
+        }
+
+        .sync-status.offline {
+            background: #FF9500;
+            color: white;
+        }
+
+        .sync-status.syncing {
+            background: #007AFF;
+            color: white;
+        }
+
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (min-width: 768px) {
             .container { max-width: 1200px; margin: 0 auto; }
             .list-container { height: calc(100vh - 200px); overflow-y: auto; }
@@ -726,11 +773,13 @@
             .header-text { color: black !important; }
         }
     </style>
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <!-- Indicador de sincronización -->
+    <div id="syncStatus" class="sync-status offline">
+        <div class="sync-indicator"></div>
+        <span id="syncText">📡 Offline</span>
+    </div>
 
     <header>
         <div class="header-content">
@@ -769,7 +818,6 @@
         <form id="atestadoForm">
             <input type="hidden" id="currentId">
             
-            <!-- Referencia del Atestado -->
             <div class="form-section">
                 <div class="atestado-reference">
                     <h2 id="displayReferencia">NUEVO ATESTADO</h2>
@@ -829,7 +877,6 @@
             <div class="form-section">
                 <h2>✅ Diligencias</h2>
                 
-                <!-- Gráfico de Tarta -->
                 <div class="pie-chart-container">
                     <div class="pie-chart" id="pieChart"></div>
                     <div class="pie-legend">
@@ -933,10 +980,34 @@
     </div>
 
     <script>
-        let atestados = JSON.parse(localStorage.getItem('atestadosDB')) || [];
-                // 🔥 FIREBASE CONFIGURATION
-        const firebaseConfig = {
-            // PEGA // Import the functions you need from the SDKs you need
+        // ============================================
+        // VARIABLES GLOBALES
+        // ============================================
+        let atestados = [];
+        let currentLocationMode = 'manual';
+        let diligenciasTemp = [];
+        let currentDiligenciaId = null;
+        let isOnline = navigator.onLine;
+        let db = null;
+        let firebaseInitialized = false;
+
+        // ============================================
+        // DEBUG
+        // ============================================
+        function showDebug(msg) {
+            const debugDiv = document.getElementById('debugInfo');
+            if(debugDiv) {
+                debugDiv.textContent = msg;
+                debugDiv.style.display = 'block';
+                console.log('[DEBUG]', msg);
+            }
+        }
+
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        function initializeFirebase() {
+            // // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -956,112 +1027,137 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);AQUÍ TU CÓDIGO DE FIREBASE
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        let isOnline = navigator.onLine;
+const analytics = getAnalytics(app);            const firebaseConfig = {
+                apiKey: "PEGAR_AQUI",
+                authDomain: "PEGAR_AQUI",
+                projectId: "PEGAR_AQUI",
+                storageBucket: "PEGAR_AQUI",
+                messagingSenderId: "PEGAR_AQUI",
+                appId: "PEGAR_AQUI"
+            };
 
-        window.addEventListener('online', () => { isOnline = true; syncData(); });
-        window.addEventListener('offline', () => { isOnline = false; });
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                firebaseInitialized = true;
+                showDebug('✅ Firebase inicializado correctamente');
+                updateSyncStatus('online');
+            } catch(error) {
+                console.error('❌ Error Firebase:', error);
+                showDebug('❌ Error Firebase: ' + error.message);
+                updateSyncStatus('offline');
+            }
+        }
 
+        // ============================================
+        // SYNC STATUS
+        // ============================================
+        function updateSyncStatus(status) {
+            const syncStatus = document.getElementById('syncStatus');
+            const syncText = document.getElementById('syncText');
+            
+            if(status === 'online') {
+                syncStatus.className = 'sync-status online';
+                syncText.textContent = '📡 Online';
+            } else if(status === 'syncing') {
+                syncStatus.className = 'sync-status syncing';
+                syncText.textContent = '🔄 Sincronizando...';
+            } else {
+                syncStatus.className = 'sync-status offline';
+                syncText.textContent = '📡 Offline';
+            }
+        }
+
+        // ============================================
+        // FIREBASE FUNCTIONS
+        // ============================================
         function listenToAtestados() {
-            if(!isOnline) return;
-            db.collection('atestados').onSnapshot((snapshot) => {
-                const nuevos = [];
-                snapshot.forEach((doc) => {
-                    nuevos.push({ id: doc.id, ...doc.data() });
-                });
-                atestados = nuevos;
-                locconst savedId = await saveToCloud(newData, id);
-if(!id) {
-    newData.id = savedId;
-    atestados.push(newData);
-} else {
-    const index = atestados.findIndex(a => a.id === id);
-    if(index !== -1) {
-        atestados[index] = { ...atestados[index], ...newData, id };
-    }
-}alStorage.setItem('atestadosDB', JSON.stringify(atestados));
-                if(typeof renderList === 'function') renderList();
-            });
+            if(!firebaseInitialized || !isOnline || !db) {
+                showDebug('⚠️ No se puede escuchar: Firebase no inicializado o sin conexión');
+                return;
+            }
+
+            updateSyncStatus('syncing');
+            
+            db.collection('atestados').onSnapshot(
+                (snapshot) => {
+                    const nuevosAtestados = [];
+                    snapshot.forEach((doc) => {
+                        nuevosAtestados.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    atestados = nuevosAtestados;
+                    localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                    
+                    showDebug('✅ Sincronizados ' + atestados.length + ' atestados');
+                    updateSyncStatus('online');
+                    renderList();
+                },
+                (error) => {
+                    console.error('❌ Error escuchando:', error);
+                    showDebug('❌ Error sync: ' + error.message);
+                    updateSyncStatus('offline');
+                }
+            );
         }
 
         async function saveToCloud(data, id) {
-            if(!isOnline) {
+            if(!firebaseInitialized || !isOnline || !db) {
+                showDebug('⚠️ Guardando solo en localStorage (sin conexión)');
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 return id || Date.now().toString();
             }
+
             try {
+                updateSyncStatus('syncing');
+                
                 if(id) {
                     await db.collection('atestados').doc(id).update(data);
+                    showDebug('✅ Actualizado en nube: ' + id);
                 } else {
                     const docRef = await db.collection('atestados').add(data);
+                    showDebug('✅ Creado en nube: ' + docRef.id);
                     return docRef.id;
                 }
+                
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                updateSyncStatus('online');
                 return id;
             } catch(error) {
-                console.error('Error:', error);
+                console.error('❌ Error guardando:', error);
+                showDebug('❌ Error: ' + error.message);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                updateSyncStatus('offline');
                 return id || Date.now().toString();
             }
         }
 
         async function deleteFromCloud(id) {
-            if(isOnline) {
-                try { await db.collection('atestados').doc(id).delete(); } catch(e) {}
+            if(!firebaseInitialized || !isOnline || !db) return;
+            
+            try {
+                await db.collection('atestados').doc(id).delete();
+                showDebug('✅ Eliminado de nube: ' + id);
+            } catch(error) {
+                console.error('❌ Error eliminando:', error);
             }
         }
 
-        async function syncData() {
-            if(!isOnline) return;
-            listenToAtestados();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const cached = localStorage.getItem('atestadosDB');
-            if(cached) {
-                atestados = JSON.parse(cached);
-                if(typeof renderList === 'function') renderList();
-            }
-            setTimeout(() => {
-                isOnline = navigator.onLine;
-                if(isOnline) listenToAtestados();
-            }, 1000);
-        });
-        let currentLocationMode = 'manual';
-        let diligenciasTemp = [];
-        let currentDiligenciaId = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderList();
-            document.getElementById('fechaDiligencia').valueAsDate = new Date();
-            showDebug('Aplicación cargada. Atestados: ' + atestados.length);
-        });
-
-        function showDebug(msg) {
-            const debugDiv = document.getElementById('debugInfo');
-            if(debugDiv) {
-                debugDiv.textContent = msg;
-                debugDiv.style.display = 'block';
-                setTimeout(() => { debugDiv.style.display = 'none'; }, 5000);
-            }
-            console.log(msg);
-        }
-
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
         function updateReferencia() {
             const numAtestado = document.getElementById('numAtestado').value.trim();
             const displayRef = document.getElementById('displayReferencia');
-            if(numAtestado) {
-                displayRef.textContent = 'ATESTADO #' + numAtestado;
-            } else {
-                displayRef.textContent = 'NUEVO ATESTADO';
+            if(displayRef) {
+                displayRef.textContent = numAtestado ? 'ATESTADO #' + numAtestado : 'NUEVO ATESTADO';
             }
         }
 
         function renderList(filterText = '') {
             const container = document.getElementById('atestadosList');
+            if(!container) return;
+            
             container.innerHTML = '';
 
             const filtered = atestados.filter(a => {
@@ -1101,6 +1197,8 @@ if(!id) {
                 card.style.cursor = 'pointer';
                 container.appendChild(card);
             });
+            
+            showDebug('📋 Listado renderizado: ' + filtered.length + ' atestados');
         }
 
         function generateDiligenciaId() {
@@ -1129,7 +1227,7 @@ if(!id) {
             };
             
             diligenciasTemp.push(newDiligencia);
-            showDebug('Diligencia añadida: ' + tipo + ' | Total: ' + diligenciasTemp.length);
+            showDebug('➕ Diligencia añadida: ' + tipo);
             
             renderDiligenciasTemp();
             updatePieChart();
@@ -1142,10 +1240,10 @@ if(!id) {
             const pendientesContainer = document.getElementById('listaPendientes');
             const realizadasContainer = document.getElementById('listaRealizadas');
             
+            if(!pendientesContainer || !realizadasContainer) return;
+            
             const pendientes = diligenciasTemp.filter(d => !d.completed);
             const realizadas = diligenciasTemp.filter(d => d.completed);
-            
-            showDebug('Renderizando: ' + pendientes.length + ' pendientes, ' + realizadas.length + ' realizadas');
             
             document.getElementById('pendingCount').textContent = pendientes.length;
             document.getElementById('completedCount').textContent = realizadas.length;
@@ -1179,12 +1277,11 @@ if(!id) {
             if(dil.fotos && dil.fotos.length > 0) {
                 fotosHtml = `
                     <div class="fotos-section">
-                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s) adjuntada(s)</div>
+                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s)</div>
                         <div class="fotos-grid">
                             ${dil.fotos.slice(0, 4).map((foto) => `
                                 <img src="${foto}" class="foto-thumbnail" onclick="event.stopPropagation(); showFoto('${foto}')" alt="Foto">
                             `).join('')}
-                            ${dil.fotos.length > 4 ? `<div class="foto-thumbnail" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:10px;">+${dil.fotos.length - 4}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1213,10 +1310,10 @@ if(!id) {
                         🔔 Recordatorio
                     </button>
                     <button type="button" class="btn-toggle-status ${isCompleted ? '' : 'pending'}" onclick="event.stopPropagation(); toggleDiligenciaStatus('${dil.id}')">
-                        ${isCompleted ? '↩️ Marcar como Pendiente' : '✅ Marcar como Realizada'}
+                        ${isCompleted ? '↩️ Pendiente' : '✅ Realizada'}
                     </button>
                     <button type="button" class="btn-delete-diligencia" onclick="event.stopPropagation(); deleteDiligencia('${dil.id}')">
-                        🗑️ Eliminar
+                        🗑️
                     </button>
                 </div>
             `;
@@ -1229,7 +1326,7 @@ if(!id) {
             if(dil) {
                 dil.completed = !dil.completed;
                 dil.completedDate = dil.completed ? new Date().toISOString() : null;
-                showDebug('Diligencia ' + (dil.completed ? 'COMPLETADA' : 'PENDIENTE') + ': ' + dil.tipo);
+                showDebug('🔄 Estado cambiado: ' + (dil.completed ? '✅' : '⏳'));
                 renderDiligenciasTemp();
                 updatePieChart();
             }
@@ -1237,9 +1334,8 @@ if(!id) {
 
         function deleteDiligencia(diligenciaId) {
             if(confirm('¿Eliminar esta diligencia?')) {
-                const before = diligenciasTemp.length;
                 diligenciasTemp = diligenciasTemp.filter(d => d.id !== diligenciaId);
-                showDebug('Diligencia eliminada. Antes: ' + before + ' Ahora: ' + diligenciasTemp.length);
+                showDebug('🗑️ Diligencia eliminada');
                 renderDiligenciasTemp();
                 updatePieChart();
             }
@@ -1251,23 +1347,17 @@ if(!id) {
             const pending = total - completed;
             const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
             
-            // Actualizar gráfico de tarta
             const completedDeg = total > 0 ? (completed / total) * 360 : 0;
-            const pendingDeg = 360 - completedDeg;
             
             const pieChart = document.getElementById('pieChart');
-            if(completedDeg > 0) {
-                pieChart.style.background = `conic-gradient(
-                    var(--success) 0deg ${completedDeg}deg,
-                    var(--warning) ${completedDeg}deg 360deg
-                )`;
-            } else {
-                pieChart.style.background = `conic-gradient(
-                    var(--warning) 0deg 360deg
-                )`;
+            if(pieChart) {
+                if(completedDeg > 0) {
+                    pieChart.style.background = `conic-gradient(var(--success) 0deg ${completedDeg}deg, var(--warning) ${completedDeg}deg 360deg)`;
+                } else {
+                    pieChart.style.background = `conic-gradient(var(--warning) 0deg 360deg)`;
+                }
             }
             
-            // Actualizar textos
             document.getElementById('progressPercent').textContent = percentage + '%';
             document.getElementById('completedCount').textContent = completed;
             document.getElementById('pendingCount').textContent = pending;
@@ -1277,7 +1367,7 @@ if(!id) {
 
         function showCameraModal(diligenciaId) {
             currentDiligenciaId = diligenciaId;
-            showDebug('Abriendo cámara para diligencia: ' + diligenciaId);
+            showDebug('📸 Abriendo cámara...');
             
             const input = document.createElement('input');
             input.type = 'file';
@@ -1287,7 +1377,7 @@ if(!id) {
             
             input.onchange = (e) => {
                 const files = e.target.files;
-                showDebug('Archivos seleccionados: ' + files.length);
+                showDebug('📷 ' + files.length + ' fotos seleccionadas');
                 
                 if(files.length > 0) {
                     const dil = diligenciasTemp.find(d => d.id === diligenciaId);
@@ -1299,22 +1389,14 @@ if(!id) {
                                 dil.fotos.push(event.target.result);
                                 processed++;
                                 if(processed === files.length) {
-                                    showDebug('Fotos añadidas: ' + dil.fotos.length);
+                                    showDebug('✅ ' + dil.fotos.length + ' fotos añadidas');
                                     renderDiligenciasTemp();
                                 }
-                            };
-                            reader.onerror = () => {
-                                showDebug('Error leyendo archivo');
                             };
                             reader.readAsDataURL(file);
                         });
                     }
                 }
-            };
-            
-            input.onerror = () => {
-                showDebug('Error abriendo cámara');
-                alert('❌ Error al abrir la cámara. Asegúrate de dar permisos.');
             };
             
             input.click();
@@ -1369,9 +1451,7 @@ if(!id) {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
-            dil.recordatorioEnviado = true;
-            
-            alert(`✅ Recordatorio generado\n\n📅 Fecha: ${formatDate(dil.fecha)} ${dil.hora}\n🔔 Se ha descargado un archivo .ics`);
+            alert(`✅ Recordatorio generado\n📅 ${formatDate(dil.fecha)} ${dil.hora}`);
         }
 
         function showFoto(fotoSrc) {
@@ -1401,11 +1481,12 @@ if(!id) {
 
         function getCurrentPosition() {
             if(!navigator.geolocation) {
-                alert('Tu dispositivo no soporta geolocalización');
+                alert('❌ Tu dispositivo no soporta geolocalización');
                 return;
             }
 
             const btn = document.querySelector('.btn-geo');
+            const originalText = btn.innerHTML;
             btn.innerHTML = '<span>⏳</span> Obteniendo...';
             btn.disabled = true;
 
@@ -1434,10 +1515,11 @@ if(!id) {
                     
                     btn.innerHTML = '<span>✅</span> Ubicación Obtenida';
                     btn.disabled = false;
+                    showDebug('📍 GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
                 },
                 (error) => {
-                    alert('Error: ' + error.message);
-                    btn.innerHTML = '<span>📍</span> Obtener Ubicación GPS';
+                    alert('❌ Error GPS: ' + error.message);
+                    btn.innerHTML = originalText;
                     btn.disabled = false;
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
@@ -1471,17 +1553,17 @@ if(!id) {
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
             window.scrollTo(0, 0);
-            showDebug('Nuevo atestado creado');
+            showDebug('➕ Nuevo atestado creado');
         }
 
         function openDetail(id) {
             const atestado = atestados.find(a => a.id === id);
             if(!atestado) {
-                showDebug('ERROR: No se encontró atestado con ID: ' + id);
+                showDebug('❌ No se encontró atestado: ' + id);
                 return;
             }
 
-            showDebug('Abriendo atestado: ' + atestado.numAtestado + ' | Diligencias: ' + (atestado.diligencias ? atestado.diligencias.length : 0));
+            showDebug('📂 Abriendo: #' + atestado.numAtestado);
 
             document.getElementById('currentId').value = atestado.id;
             document.getElementById('numAtestado').value = atestado.numAtestado;
@@ -1508,7 +1590,7 @@ if(!id) {
             document.getElementById('matriculas').value = atestado.matriculas;
             
             diligenciasTemp = atestado.diligencias ? JSON.parse(JSON.stringify(atestado.diligencias)) : [];
-            showDebug('Diligencias cargadas: ' + diligenciasTemp.length);
+            showDebug('📋 Diligencias cargadas: ' + diligenciasTemp.length);
             
             renderDiligenciasTemp();
             updatePieChart();
@@ -1527,14 +1609,14 @@ if(!id) {
             renderList(document.getElementById('searchInput').value);
         }
 
-        function saveAtestado() {
+        async function saveAtestado() {
             const id = document.getElementById('currentId').value;
             const numAtestado = document.getElementById('numAtestado').value.trim();
             const fecha = document.getElementById('fechaSiniestro').value;
             const hora = document.getElementById('horaSiniestro').value;
             
             if(!numAtestado || !fecha || !hora) {
-                alert('❌ Completa los campos obligatorios (Número, Fecha y Hora)');
+                alert('❌ Completa los campos obligatorios');
                 return;
             }
             
@@ -1544,7 +1626,6 @@ if(!id) {
                 document.getElementById('lugarSiniestro').value.trim();
             
             const newData = {
-                id: id ? id : Date.now().toString(),
                 numAtestado,
                 fecha,
                 hora,
@@ -1559,34 +1640,36 @@ if(!id) {
                 fechaModificacion: new Date().toISOString()
             };
 
-            if(id) {
+            showDebug('💾 Guardando atestado #' + numAtestado);
+
+            const savedId = await saveToCloud(newData, id);
+            
+            if(!id) {
+                newData.id = savedId;
+                atestados.push(newData);
+            } else {
                 const index = atestados.findIndex(a => a.id === id);
                 if(index !== -1) {
-                    atestados[index] = newData;
-                    showDebug('Atestado ACTUALIZADO. Diligencias: ' + diligenciasTemp.length);
+                    atestados[index] = { ...atestados[index], ...newData, id };
                 }
-            } else {
-                atestados.push(newData);
-                showDebug('Atestado CREADO. Total: ' + atestados.length + ' | Diligencias: ' + diligenciasTemp.length);
             }
 
-            localStorage.setItem('atestadosDB', JSON.stringify(atestados));
-            
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            alert(`✅ Atestado #${numAtestado} GUARDADO\n📋 ${diligenciasTemp.length} diligencia(s)\n✅ ${completed} realizada(s)\n\nLas diligencias se han guardado correctamente.`);
+            alert(`✅ Atestado #${numAtestado} GUARDADO\n📋 ${diligenciasTemp.length} diligencia(s)\n✅ ${completed} realizada(s)\n\n${isOnline && firebaseInitialized ? '📡 Sincronizado en la nube' : '⏳ Solo local (sin conexión)'}`);
             goBack();
         }
 
-        function deleteAtestado() {
+        async function deleteAtestado() {
             const id = document.getElementById('currentId').value;
             const atestado = atestados.find(a => a.id === id);
             
             if(!atestado) return;
             
-            if(confirm(`⚠️ ¿Eliminar permanentemente el Atestado #${atestado.numAtestado}?\n\nEsta acción NO se puede deshacer.`)) {
+            if(confirm(`⚠️ ¿Eliminar el Atestado #${atestado.numAtestado}?\n\nEsta acción NO se puede deshacer.`)) {
                 await deleteFromCloud(id);
                 atestados = atestados.filter(a => a.id !== id);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                
                 alert('🗑️ Atestado eliminado');
                 goBack();
             }
@@ -1607,7 +1690,7 @@ if(!id) {
                 const pendientes = total - completadas;
                 
                 const dilDetails = (a.diligencias || []).map(d => 
-                    `${d.tipo} | ${formatDate(d.fecha)} ${d.hora || ''} | ${d.completed ? 'REALIZADA' : 'PENDIENTE'}${d.fotos ? ` [${d.fotos.length} fotos]` : ''}`
+                    `${d.tipo} | ${formatDate(d.fecha)} ${d.hora || ''} | ${d.completed ? 'REALIZADA' : 'PENDIENTE'}`
                 ).join(' || ');
                 
                 csv += `"${a.organizacion}","${a.numAtestado}","${a.fecha}","${a.hora || ''}","${a.lugar}","${a.matriculas}",${total},${completadas},${pendientes},"${dilDetails}"\n`;
@@ -1628,6 +1711,50 @@ if(!id) {
                 year: 'numeric'
             });
         }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            showDebug('🚀 Iniciando aplicación...');
+            
+            // Inicializar Firebase
+            initializeFirebase();
+            
+            // Cargar datos locales
+            const cached = localStorage.getItem('atestadosDB');
+            if(cached) {
+                atestados = JSON.parse(cached);
+                showDebug('📦 Cargados ' + atestados.length + ' atestados de localStorage');
+            }
+            
+            // Escuchar cambios de conexión
+            window.addEventListener('online', () => { 
+                isOnline = true; 
+                showDebug('🌐 Conexión restaurada');
+                updateSyncStatus('online');
+                if(firebaseInitialized) listenToAtestados();
+            });
+            window.addEventListener('offline', () => { 
+                isOnline = false; 
+                showDebug('📡 Sin conexión');
+                updateSyncStatus('offline');
+            });
+            
+            // Inicializar estado
+            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
+            
+            // Renderizar lista inicial
+            renderList();
+            
+            // Configurar fecha por defecto
+            const fechaInput = document.getElementById('fechaDiligencia');
+            if(fechaInput) {
+                fechaInput.valueAsDate = new Date();
+            }
+            
+            showDebug('✅ Aplicación lista');
+        });
     </script>
 </body>
 </html>
