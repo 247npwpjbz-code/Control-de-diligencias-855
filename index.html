@@ -2,65 +2,998 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestión Atestados - Policía Local Palma</title>
+    
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-        h1 { color: #1a237e; text-align: center; }
-        .btn { background: #007AFF; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; cursor: pointer; margin: 10px; }
-        .btn-success { background: #34C759; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
-        .status { position: fixed; top: 10px; right: 10px; padding: 10px 20px; border-radius: 20px; color: white; font-weight: bold; }
-        .status.online { background: #34C759; }
-        .status.offline { background: #FF9500; }
-        .card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .form-group { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        :root {
+            --bg-color: #F2F2F7;
+            --card-bg: #FFFFFF;
+            --primary: #007AFF;
+            --text-main: #000000;
+            --text-sec: #8E8E93;
+            --border: #C6C6C8;
+            --danger: #FF3B30;
+            --success: #34C759;
+            --warning: #FF9500;
+            --police-blue: #1a237e;
+            --police-light: #2962ff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--police-blue) 0%, var(--police-light) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .logo-container {
+            background: white;
+            padding: 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .logo-police {
+            width: 80px;
+            height: auto;
+            display: block;
+        }
+
+        .header-text {
+            text-align: center;
+            color: white;
+        }
+
+        .header-text h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .header-text h2 {
+            margin: 5px 0 0 0;
+            font-size: 16px;
+            font-weight: 500;
+            opacity: 0.95;
+        }
+
+        .search-container {
+            margin-top: 15px;
+        }
+
+        input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="time"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255,255,255,0.95);
+            font-size: 16px;
+            outline: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            padding-right: 40px;
+        }
+
+        .list-container { padding: 15px; }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--police-blue), var(--police-light));
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .card-id { 
+            font-weight: 700; 
+            color: var(--police-blue);
+            font-size: 20px;
+        }
+        
+        .card-date { 
+            font-size: 13px; 
+            color: var(--text-sec); 
+        }
+        
+        .card-location { 
+            font-size: 14px; 
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+        
+        .card-plates { 
+            font-size: 13px; 
+            color: var(--text-sec); 
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .card-stats {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .stat-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .stat-pending {
+            background: #FFF3CD;
+            color: #856404;
+        }
+
+        .stat-completed {
+            background: #D4EDDA;
+            color: #155724;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,122,255,0.4);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-float {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            font-size: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 20px rgba(0,122,255,0.5);
+            z-index: 200;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-geo, .btn-camera, .btn-calendar {
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-geo {
+            background: var(--success);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-camera {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-calendar {
+            background: var(--warning);
+            color: white;
+        }
+
+        .detail-view {
+            display: none;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .form-section {
+            background: var(--card-bg);
+            margin: 15px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .form-section h2 {
+            color: var(--police-blue);
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .form-section h3 {
+            color: var(--text-main);
+            font-size: 16px;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .form-group { margin-bottom: 15px; }
+        
+        label { 
+            display: block; 
+            font-size: 13px; 
+            color: var(--text-sec); 
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .geo-info {
+            background: #E3F2FD;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+            display: none;
+            border-left: 4px solid var(--primary);
+        }
+
+        .geo-info.active {
+            display: block;
+        }
+
+        .location-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: var(--police-blue);
+            color: white;
+            border-color: var(--police-blue);
+        }
+
+        .add-diligencia-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px dashed var(--border);
+        }
+
+        .diligencias-section {
+            margin-top: 15px;
+        }
+
+        .diligencia-item {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .diligencia-item.pending {
+            border-left: 4px solid var(--warning);
+            background: #FFFBF0;
+        }
+
+        .diligencia-item.completed {
+            border-left: 4px solid var(--success);
+            background: #F0FFF4;
+            opacity: 0.9;
+        }
+
+        .diligencia-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .diligencia-info {
+            flex: 1;
+        }
+
+        .diligencia-tipo {
+            font-weight: 700;
+            color: var(--police-blue);
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .diligencia-fecha {
+            font-size: 13px;
+            color: var(--text-sec);
+        }
+
+        .diligencia-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-pending {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-completed {
+            background: var(--success);
+            color: white;
+        }
+
+        .diligencia-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn-toggle-status {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-toggle-status.pending {
+            background: var(--warning);
+        }
+
+        .btn-delete-diligencia {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .fotos-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .fotos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .foto-thumbnail {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .foto-thumbnail:hover {
+            transform: scale(1.05);
+        }
+
+        .fotos-count {
+            font-size: 12px;
+            color: var(--text-sec);
+            font-weight: 600;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .delete-section {
+            background: #FFF5F5;
+            border: 2px solid var(--danger);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px;
+        }
+
+        .delete-section h3 {
+            color: var(--danger);
+            margin-top: 0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-count {
+            background: var(--border);
+            color: var(--text-main);
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .pending-header .section-count {
+            background: var(--warning);
+            color: white;
+        }
+
+        .completed-header .section-count {
+            background: var(--success);
+            color: white;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: var(--text-sec);
+            padding: 30px;
+            font-size: 14px;
+            font-style: italic;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed var(--border);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+        }
+
+        .pie-chart-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        .pie-chart {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            position: relative;
+            background: conic-gradient(
+                var(--success) 0deg 0deg,
+                var(--warning) 0deg 360deg
+            );
+            transition: all 0.5s ease;
+        }
+
+        .pie-chart::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: #f8f9fa;
+            border-radius: 50%;
+        }
+
+        .pie-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-color.completed {
+            background: var(--success);
+        }
+
+        .legend-color.pending {
+            background: var(--warning);
+        }
+
+        .pie-stats {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--police-blue);
+        }
+
+        .pie-label {
+            font-size: 12px;
+            color: var(--text-sec);
+            font-weight: 400;
+        }
+
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 12px;
+            display: none;
+        }
+
+        .atestado-reference {
+            background: linear-gradient(135deg, var(--police-blue), var(--police-light));
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .atestado-reference h2 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            border: none;
+        }
+
+        .atestado-reference p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .sync-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .sync-status.online {
+            background: #34C759;
+            color: white;
+        }
+
+        .sync-status.offline {
+            background: #FF9500;
+            color: white;
+        }
+
+        .sync-status.syncing {
+            background: #007AFF;
+            color: white;
+        }
+
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (min-width: 768px) {
+            .container { max-width: 1200px; margin: 0 auto; }
+            .list-container { height: calc(100vh - 200px); overflow-y: auto; }
+            .detail-view { display: block; }
+            .btn-float { display: none; }
+            
+            .header-text h1 { font-size: 28px; }
+            .header-text h2 { font-size: 18px; }
+            .logo-police { width: 100px; }
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            header {
+                background: white !important;
+                border-bottom: 3px solid var(--police-blue);
+            }
+            .header-text { color: black !important; }
+        }
     </style>
 </head>
 <body>
-    <div id="status" class="status offline">📡 Offline</div>
-    
-    <div class="container">
-        <h1>🚔 Policía Local C.P. 0855 - UVAC Palma</h1>
-        
-        <div id="mainView">
-            <button class="btn btn-success" onclick="nuevoAtestado()" style="width:100%; font-size:20px;">+ Nuevo Atestado</button>
-            <div id="listaAtestados"></div>
+    <!-- Indicador de sincronización -->
+    <div id="syncStatus" class="sync-status offline">
+        <div class="sync-indicator"></div>
+        <span id="syncText">📡 Offline</span>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <div class="logo-container">
+                <svg class="logo-police" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="400" height="200" fill="#1a237e"/>
+                    <text x="200" y="90" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">POLICIA</text>
+                    <g transform="translate(50, 110)">
+                        <rect x="0" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                        <rect x="35" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                        <rect x="70" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                    </g>
+                    <text x="200" y="150" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">LOCAL</text>
+                </svg>
+            </div>
+            <div class="header-text">
+                <h1>Policía Local C.P. 0855</h1>
+                <h2>UVAC Palma</h2>
+            </div>
         </div>
-        
-        <div id="formView" style="display:none;">
-            <h2>📋 Nuevo Atestado</h2>
-            <div class="form-group">
-                <label>Número de Atestado:</label>
-                <input type="text" id="numAtestado" placeholder="Ej: 2024-001">
-            </div>
-            <div class="form-group">
-                <label>Fecha:</label>
-                <input type="date" id="fecha">
-            </div>
-            <div class="form-group">
-                <label>Lugar:</label>
-                <input type="text" id="lugar" placeholder="Calle, Km...">
-            </div>
-            <div class="form-group">
-                <label>Matrículas:</label>
-                <input type="text" id="matriculas" placeholder="1234ABC, 5678XYZ">
-            </div>
-            <button class="btn btn-success" onclick="guardarAtestado()" style="width:100%;">💾 Guardar</button>
-            <button class="btn" onclick="volver()" style="width:100%;">↩️ Volver</button>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar por Nº Atestado, Lugar, Fecha o Matrícula..." onkeyup="filterAtestados()">
         </div>
+    </header>
+
+    <div id="mainView" class="container">
+        <div class="list-container" id="atestadosList"></div>
+        <button class="btn btn-float" onclick="createNewAtestado()">+</button>
+    </div>
+
+    <div id="detailView" class="detail-view">
+        <div style="padding: 15px;">
+            <button onclick="goBack()" class="btn btn-outline" style="width:100%;">&lt; Volver al Listado</button>
+        </div>
+
+        <form id="atestadoForm">
+            <input type="hidden" id="currentId">
+            
+            <div class="form-section">
+                <div class="atestado-reference">
+                    <h2 id="displayReferencia">NUEVO ATESTADO</h2>
+                    <p>Referencia Oficial - Policía Local C.P. 0855 UVAC Palma</p>
+                </div>
+
+                <h2>📋 Datos Generales</h2>
+                <div class="form-group">
+                    <label>Número de Atestado (Referencia) *</label>
+                    <input type="text" id="numAtestado" required placeholder="Ej: 2024-001" oninput="updateReferencia()">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha del Siniestro *</label>
+                        <input type="date" id="fechaSiniestro" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora del Siniestro *</label>
+                        <input type="time" id="horaSiniestro" required value="09:00">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📍 Ubicación del Accidente</label>
+                    <div class="location-toggle">
+                        <button type="button" class="toggle-btn active" id="btnManual" onclick="setLocationMode('manual')">📝 Dirección Manual</button>
+                        <button type="button" class="toggle-btn" id="btnGeo" onclick="setLocationMode('geo')">📍 GPS</button>
+                    </div>
+                    
+                    <div id="manualLocation">
+                        <input type="text" id="lugarSiniestro" placeholder="Calle, número, Km...">
+                    </div>
+                    
+                    <div id="geoLocation" style="display:none;">
+                        <button type="button" class="btn-geo" onclick="getCurrentPosition()">
+                            <span>📍</span> Obtener Ubicación GPS
+                        </button>
+                        <div id="geoInfo" class="geo-info">
+                            <strong>Coordenadas:</strong><br>
+                            Lat: <span id="latValue">-</span><br>
+                            Lon: <span id="lonValue">-</span><br>
+                            <small id="geoAddress">Buscando...</small>
+                        </div>
+                        <input type="hidden" id="geoLat">
+                        <input type="hidden" id="geoLon">
+                        <input type="hidden" id="geoFullAddress">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🚗 Matrículas Implicadas</label>
+                    <input type="text" id="matriculas" placeholder="Ej: 1234ABC, 5678XYZ">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>✅ Diligencias</h2>
+                
+                <div class="pie-chart-container">
+                    <div class="pie-chart" id="pieChart"></div>
+                    <div class="pie-legend">
+                        <div class="legend-item">
+                            <div class="legend-color completed"></div>
+                            <span>Realizadas: <strong id="completedCount">0</strong></span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color pending"></div>
+                            <span>Pendientes: <strong id="pendingCount">0</strong></span>
+                        </div>
+                        <div class="pie-stats">
+                            <span id="progressPercent">0%</span>
+                            <div class="pie-label">Completado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-diligencia-section">
+                    <h3 style="margin-top:0; font-size:14px;">➕ Nueva Diligencia</h3>
+                    <div class="form-group">
+                        <label>Tipo de Diligencia</label>
+                        <select id="tipoDiligencia">
+                            <option value="">Seleccionar...</option>
+                            <option value="Diligencia de Hechos">Diligencia de Hechos</option>
+                            <option value="Inspección Ocular de la Vía">Inspección Ocular de la Vía</option>
+                            <option value="Inspección Ocular del Vehículo A">Inspección Ocular del Vehículo A</option>
+                            <option value="Inspección Ocular del Vehículo B">Inspección Ocular del Vehículo B</option>
+                            <option value="Inspección Ocular del Vehículo C">Inspección Ocular del Vehículo C</option>
+                            <option value="Inspección Ocular Conductor">Inspección Ocular Conductor</option>
+                            <option value="Inspección Ocular Peatón">Inspección Ocular Peatón</option>
+                            <option value="Inspección Ocular Testigo">Inspección Ocular Testigo</option>
+                            <option value="Croquis del Accidente">Croquis del Accidente</option>
+                            <option value="Denuncias Administrativas">Denuncias Administrativas</option>
+                            <option value="Diligencias Penales">Diligencias Penales</option>
+                            <option value="Otras Diligencias">Otras Diligencias</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de la Diligencia</label>
+                        <input type="date" id="fechaDiligencia">
+                    </div>
+                    <div class="form-group">
+                        <label>Hora de la Diligencia</label>
+                        <input type="time" id="horaDiligencia" value="09:00">
+                    </div>
+                    <button type="button" class="btn btn-success" onclick="addDiligencia()" style="width:100%;">
+                        ➕ Añadir Diligencia (Pendiente)
+                    </button>
+                </div>
+
+                <div class="diligencias-section">
+                    <div class="section-header pending-header">
+                        <div class="section-title">
+                            <span>⏳ Diligencias Pendientes</span>
+                            <span class="section-count" id="pendingCountBadge">0</span>
+                        </div>
+                    </div>
+                    <div id="listaPendientes">
+                        <div class="empty-message">No hay diligencias pendientes</div>
+                    </div>
+                </div>
+
+                <div class="diligencias-section">
+                    <div class="section-header completed-header">
+                        <div class="section-title">
+                            <span>✅ Diligencias Realizadas</span>
+                            <span class="section-count" id="completedCountBadge">0</span>
+                        </div>
+                    </div>
+                    <div id="listaRealizadas">
+                        <div class="empty-message">No hay diligencias realizadas</div>
+                    </div>
+                </div>
+
+                <div id="debugInfo" class="debug-info"></div>
+            </div>
+
+            <div class="form-section">
+                <div class="button-group">
+                    <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar Atestado</button>
+                    <button type="button" class="btn" onclick="exportToExcel()">📊 Exportar Excel</button>
+                </div>
+            </div>
+
+            <div class="delete-section" id="deleteSection" style="display:none;">
+                <h3>🗑️ Eliminar Atestado</h3>
+                <p style="font-size:13px; color:var(--text-sec); margin-bottom:15px;">
+                    Esta acción es irreversible.
+                </p>
+                <button type="button" class="btn btn-danger" id="btnDelete" onclick="deleteAtestado()" style="width:100%;">
+                    🗑️ Eliminar Permanentemente
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div id="fotoModal" class="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <img id="modalImg" class="modal-img" src="" alt="Foto ampliada">
     </div>
 
     <script>
+        // ============================================
+        // VARIABLES GLOBALES
+        // ============================================
         let atestados = [];
+        let currentLocationMode = 'manual';
+        let diligenciasTemp = [];
+        let currentDiligenciaId = null;
+        let isOnline = navigator.onLine;
         let db = null;
-        let isOnline = false;
+        let firebaseInitialized = false;
 
-        // Configuración Firebase - REEMPLAZA CON TUS DATOS
+        // ============================================
+        // FIREBASE CONFIGURATION - TUS CREDENCIALES
+        // ============================================
         const firebaseConfig = {
             apiKey: "AIzaSyC9fjYSmXfzdtDtrs-B0JfS9iotqDUPJY",
             authDomain: "atestados-policia-palma.firebaseapp.com",
@@ -74,99 +1007,710 @@
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
-            isOnline = true;
-            document.getElementById('status').className = 'status online';
-            document.getElementById('status').textContent = '📡 Online';
-            console.log('✅ Firebase conectado');
+            firebaseInitialized = true;
+            updateSyncStatus('online');
+            console.log('✅ Firebase inicializado correctamente');
             
-            // Escuchar cambios
-            db.collection('atestados').onSnapshot(snapshot => {
-                atestados = [];
-                snapshot.forEach(doc => {
-                    atestados.push({ id: doc.id, ...doc.data() });
-                });
-                renderizarLista();
-            });
+            // Escuchar cambios en tiempo real
+            db.collection('atestados').onSnapshot(
+                (snapshot) => {
+                    atestados = [];
+                    snapshot.forEach((doc) => {
+                        atestados.push({ id: doc.id, ...doc.data() });
+                    });
+                    localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                    renderList();
+                    console.log('📡 Sincronizados ' + atestados.length + ' atestados');
+                },
+                (error) => {
+                    console.error('❌ Error escuchando:', error);
+                    updateSyncStatus('offline');
+                }
+            );
         } catch(error) {
-            console.log('⚠️ Firebase no configurado - Modo offline');
-            document.getElementById('status').textContent = '📡 Offline (Sin Firebase)';
-            cargarLocal();
-        }
-
-        function cargarLocal() {
-            const guardados = localStorage.getItem('atestados');
-            if(guardados) {
-                atestados = JSON.parse(guardados);
-                renderizarLista();
+            console.error('❌ Error Firebase:', error);
+            updateSyncStatus('offline');
+            // Cargar de localStorage si Firebase falla
+            const cached = localStorage.getItem('atestadosDB');
+            if(cached) {
+                atestados = JSON.parse(cached);
             }
         }
 
-        function renderizarLista() {
-            const lista = document.getElementById('listaAtestados');
-            lista.innerHTML = '';
+        // ============================================
+        // SYNC STATUS
+        // ============================================
+        function updateSyncStatus(status) {
+            const syncStatus = document.getElementById('syncStatus');
+            const syncText = document.getElementById('syncText');
             
-            if(atestados.length === 0) {
-                lista.innerHTML = '<p style="text-align:center; color:#999;">No hay atestados</p>';
+            if(status === 'online') {
+                syncStatus.className = 'sync-status online';
+                syncText.textContent = '📡 Online';
+            } else if(status === 'syncing') {
+                syncStatus.className = 'sync-status syncing';
+                syncText.textContent = '🔄 Sync...';
+            } else {
+                syncStatus.className = 'sync-status offline';
+                syncText.textContent = '📡 Offline';
+            }
+        }
+
+        // ============================================
+        // FIREBASE FUNCTIONS
+        // ============================================
+        async function saveToCloud(data, id) {
+            if(!firebaseInitialized || !isOnline || !db) {
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                return id || Date.now().toString();
+            }
+
+            try {
+                updateSyncStatus('syncing');
+                
+                if(id) {
+                    await db.collection('atestados').doc(id).update(data);
+                } else {
+                    const docRef = await db.collection('atestados').add(data);
+                    return docRef.id;
+                }
+                
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                updateSyncStatus('online');
+                return id;
+            } catch(error) {
+                console.error('❌ Error guardando:', error);
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                updateSyncStatus('offline');
+                return id || Date.now().toString();
+            }
+        }
+
+        async function deleteFromCloud(id) {
+            if(!firebaseInitialized || !isOnline || !db) return;
+            
+            try {
+                await db.collection('atestados').doc(id).delete();
+            } catch(error) {
+                console.error('❌ Error eliminando:', error);
+            }
+        }
+
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
+        function showDebug(msg) {
+            const debugDiv = document.getElementById('debugInfo');
+            if(debugDiv) {
+                debugDiv.textContent = msg;
+                debugDiv.style.display = 'block';
+                console.log('[DEBUG]', msg);
+            }
+        }
+
+        function updateReferencia() {
+            const numAtestado = document.getElementById('numAtestado').value.trim();
+            const displayRef = document.getElementById('displayReferencia');
+            if(displayRef) {
+                displayRef.textContent = numAtestado ? 'ATESTADO #' + numAtestado : 'NUEVO ATESTADO';
+            }
+        }
+
+        function renderList(filterText = '') {
+            const container = document.getElementById('atestadosList');
+            if(!container) return;
+            
+            container.innerHTML = '';
+
+            const filtered = atestados.filter(a => {
+                const searchStr = `${a.numAtestado} ${a.lugar} ${a.fecha} ${a.matriculas} ${a.geoAddress || ''}`.toLowerCase();
+                return searchStr.includes(filterText.toLowerCase());
+            });
+
+            if(filtered.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--text-sec); margin-top:40px;"><p>📭 No hay atestados</p></div>';
                 return;
             }
-            
-            atestados.forEach(a => {
+
+            filtered.forEach(a => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                
+                const totalDiligencias = a.diligencias ? a.diligencias.length : 0;
+                const diligenciasCompletadas = a.diligencias ? a.diligencias.filter(d => d.completed).length : 0;
+                const ubicacion = a.usoGeo ? `📍 ${a.geoAddress || 'GPS'}` : `📍 ${a.lugar}`;
+                
                 card.innerHTML = `
-                    <h3>#${a.numAtestado}</h3>
-                    <p>📅 ${a.fecha}</p>
-                    <p>📍 ${a.lugar}</p>
-                    <p>🚗 ${a.matriculas}</p>
+                    <div class="card-header">
+                        <span class="card-id">#${a.numAtestado}</span>
+                        <span class="card-date">📅 ${formatDate(a.fecha)} ${a.hora || ''}</span>
+                    </div>
+                    <div class="card-location">${ubicacion}</div>
+                    <div class="card-plates">🚗 ${a.matriculas || 'Sin matrículas'}</div>
+                    ${totalDiligencias > 0 ? `
+                        <div class="card-stats">
+                            <span class="stat-badge stat-pending">⏳ ${totalDiligencias - diligenciasCompletadas}</span>
+                            <span class="stat-badge stat-completed">✅ ${diligenciasCompletadas}</span>
+                        </div>
+                    ` : '<div class="card-stats"><span class="stat-badge" style="background:#eee;">📋 Sin diligencias</span></div>'}
                 `;
-                lista.appendChild(card);
+                
+                card.onclick = () => openDetail(a.id);
+                card.style.cursor = 'pointer';
+                container.appendChild(card);
             });
-            
-            if(db) {
-                localStorage.setItem('atestados', JSON.stringify(atestados));
-            }
         }
 
-        function nuevoAtestado() {
-            document.getElementById('mainView').style.display = 'none';
-            document.getElementById('formView').style.display = 'block';
-            document.getElementById('numAtestado').value = '';
-            document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
-            document.getElementById('lugar').value = '';
-            document.getElementById('matriculas').value = '';
+        function generateDiligenciaId() {
+            return 'dil_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
-        function guardarAtestado() {
-            const num = document.getElementById('numAtestado').value;
-            const fecha = document.getElementById('fecha').value;
-            const lugar = document.getElementById('lugar').value;
-            const matriculas = document.getElementById('matriculas').value;
+        function addDiligencia() {
+            const tipo = document.getElementById('tipoDiligencia').value;
+            const fecha = document.getElementById('fechaDiligencia').value;
+            const hora = document.getElementById('horaDiligencia').value;
             
-            if(!num || !fecha) {
-                alert('❌ Completa al menos número y fecha');
+            if(!tipo || !fecha) {
+                alert('❌ Selecciona un tipo de diligencia y una fecha');
                 return;
             }
             
-            const atestado = { numAtestado: num, fecha, lugar, matriculas };
+            const newDiligencia = {
+                id: generateDiligenciaId(),
+                tipo: tipo,
+                fecha: fecha,
+                hora: hora,
+                completed: false,
+                completedDate: null,
+                fotos: [],
+                recordatorioEnviado: false
+            };
             
-            if(db) {
-                db.collection('atestados').add(atestado).then(() => {
-                    alert('✅ Guardado en la nube');
-                    volver();
-                });
+            diligenciasTemp.push(newDiligencia);
+            showDebug('➕ Diligencia añadida: ' + tipo);
+            
+            renderDiligenciasTemp();
+            updatePieChart();
+            
+            document.getElementById('tipoDiligencia').value = '';
+            document.getElementById('horaDiligencia').value = '09:00';
+        }
+
+        function renderDiligenciasTemp() {
+            const pendientesContainer = document.getElementById('listaPendientes');
+            const realizadasContainer = document.getElementById('listaRealizadas');
+            
+            if(!pendientesContainer || !realizadasContainer) return;
+            
+            const pendientes = diligenciasTemp.filter(d => !d.completed);
+            const realizadas = diligenciasTemp.filter(d => d.completed);
+            
+            document.getElementById('pendingCount').textContent = pendientes.length;
+            document.getElementById('completedCount').textContent = realizadas.length;
+            document.getElementById('pendingCountBadge').textContent = pendientes.length;
+            document.getElementById('completedCountBadge').textContent = realizadas.length;
+            
+            if(pendientes.length === 0) {
+                pendientesContainer.innerHTML = '<div class="empty-message">No hay diligencias pendientes</div>';
             } else {
-                atestados.push(atestado);
-                localStorage.setItem('atestados', JSON.stringify(atestados));
-                renderizarLista();
-                alert('✅ Guardado localmente (sin Firebase)');
-                volver();
+                pendientesContainer.innerHTML = '';
+                pendientes.forEach((dil) => {
+                    pendientesContainer.appendChild(createDiligenciaElement(dil, false));
+                });
+            }
+            
+            if(realizadas.length === 0) {
+                realizadasContainer.innerHTML = '<div class="empty-message">No hay diligencias realizadas</div>';
+            } else {
+                realizadasContainer.innerHTML = '';
+                realizadas.forEach((dil) => {
+                    realizadasContainer.appendChild(createDiligenciaElement(dil, true));
+                });
             }
         }
 
-        function volver() {
-            document.getElementById('formView').style.display = 'none';
-            document.getElementById('mainView').style.display = 'block';
+        function createDiligenciaElement(dil, isCompleted) {
+            const div = document.createElement('div');
+            div.className = `diligencia-item ${isCompleted ? 'completed' : 'pending'}`;
+            
+            let fotosHtml = '';
+            if(dil.fotos && dil.fotos.length > 0) {
+                fotosHtml = `
+                    <div class="fotos-section">
+                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s)</div>
+                        <div class="fotos-grid">
+                            ${dil.fotos.slice(0, 4).map((foto) => `
+                                <img src="${foto}" class="foto-thumbnail" onclick="event.stopPropagation(); showFoto('${foto}')" alt="Foto">
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const completedInfo = isCompleted && dil.completedDate ? 
+                `<div class="diligencia-fecha">✅ Completada: ${formatDate(dil.completedDate)}</div>` : 
+                `<div class="diligencia-fecha">📅 ${formatDate(dil.fecha)} - 🕐 ${dil.hora || '09:00'}</div>`;
+            
+            div.innerHTML = `
+                <div class="diligencia-header">
+                    <div class="diligencia-info">
+                        <div class="diligencia-tipo">${dil.tipo}</div>
+                        ${completedInfo}
+                    </div>
+                    <span class="diligencia-status ${isCompleted ? 'status-completed' : 'status-pending'}">
+                        ${isCompleted ? '✅ Realizada' : '⏳ Pendiente'}
+                    </span>
+                </div>
+                ${fotosHtml}
+                <div class="diligencia-actions">
+                    <button type="button" class="btn-camera" onclick="event.stopPropagation(); showCameraModal('${dil.id}')">
+                        📸 Cámara
+                    </button>
+                    <button type="button" class="btn-calendar" onclick="event.stopPropagation(); addCalendarReminder('${dil.id}')">
+                        🔔 Recordatorio
+                    </button>
+                    <button type="button" class="btn-toggle-status ${isCompleted ? '' : 'pending'}" onclick="event.stopPropagation(); toggleDiligenciaStatus('${dil.id}')">
+                        ${isCompleted ? '↩️ Pendiente' : '✅ Realizada'}
+                    </button>
+                    <button type="button" class="btn-delete-diligencia" onclick="event.stopPropagation(); deleteDiligencia('${dil.id}')">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            return div;
         }
+
+        function toggleDiligenciaStatus(diligenciaId) {
+            const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+            if(dil) {
+                dil.completed = !dil.completed;
+                dil.completedDate = dil.completed ? new Date().toISOString() : null;
+                showDebug('🔄 Estado cambiado: ' + (dil.completed ? '✅' : '⏳'));
+                renderDiligenciasTemp();
+                updatePieChart();
+            }
+        }
+
+        function deleteDiligencia(diligenciaId) {
+            if(confirm('¿Eliminar esta diligencia?')) {
+                diligenciasTemp = diligenciasTemp.filter(d => d.id !== diligenciaId);
+                showDebug('🗑️ Diligencia eliminada');
+                renderDiligenciasTemp();
+                updatePieChart();
+            }
+        }
+
+        function updatePieChart() {
+            const total = diligenciasTemp.length;
+            const completed = diligenciasTemp.filter(d => d.completed).length;
+            const pending = total - completed;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            const completedDeg = total > 0 ? (completed / total) * 360 : 0;
+            
+            const pieChart = document.getElementById('pieChart');
+            if(pieChart) {
+                if(completedDeg > 0) {
+                    pieChart.style.background = `conic-gradient(var(--success) 0deg ${completedDeg}deg, var(--warning) ${completedDeg}deg 360deg)`;
+                } else {
+                    pieChart.style.background = `conic-gradient(var(--warning) 0deg 360deg)`;
+                }
+            }
+            
+            document.getElementById('progressPercent').textContent = percentage + '%';
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('completedCountBadge').textContent = completed;
+            document.getElementById('pendingCountBadge').textContent = pending;
+        }
+
+        function showCameraModal(diligenciaId) {
+            currentDiligenciaId = diligenciaId;
+            showDebug('📸 Abriendo cámara...');
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.multiple = true;
+            
+            input.onchange = (e) => {
+                const files = e.target.files;
+                showDebug('📷 ' + files.length + ' fotos seleccionadas');
+                
+                if(files.length > 0) {
+                    const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+                    if(dil) {
+                        let processed = 0;
+                        Array.from(files).forEach(file => {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                dil.fotos.push(event.target.result);
+                                processed++;
+                                if(processed === files.length) {
+                                    showDebug('✅ ' + dil.fotos.length + ' fotos añadidas');
+                                    renderDiligenciasTemp();
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                }
+            };
+            
+            input.click();
+        }
+
+        function addCalendarReminder(diligenciaId) {
+            const dil = diligenciasTemp.find(d => d.id === diligenciaId);
+            if(!dil) return;
+            
+            const atestadoNum = document.getElementById('numAtestado').value || 'XXXX';
+            const title = `Atestado ${atestadoNum} - ${dil.tipo}`;
+            const description = `Diligencia del Atestado #${atestadoNum}\nTipo: ${dil.tipo}\n\nPolicía Local C.P. 0855 UVAC Palma`;
+            
+            const eventDate = new Date(dil.fecha);
+            if(dil.hora) {
+                const [hours, minutes] = dil.hora.split(':');
+                eventDate.setHours(parseInt(hours), parseInt(minutes), 0);
+            }
+            
+            const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000);
+            
+            const icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Policia Local Palma//Atestados//ES',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'BEGIN:VEVENT',
+                `UID:${diligenciaId}@atestados-policia-palma`,
+                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `SUMMARY:${title}`,
+                `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                'LOCATION:UVAC Palma',
+                'BEGIN:VALARM',
+                'TRIGGER:-PT15M',
+                'ACTION:DISPLAY',
+                'DESCRIPTION:Recordatorio de diligencia',
+                'END:VALARM',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\r\n');
+            
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Recordatorio_${atestadoNum}_${dil.tipo.replace(/\s+/g, '_')}.ics`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert(`✅ Recordatorio generado\n📅 ${formatDate(dil.fecha)} ${dil.hora}`);
+        }
+
+        function showFoto(fotoSrc) {
+            document.getElementById('modalImg').src = fotoSrc;
+            document.getElementById('fotoModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('fotoModal').classList.remove('active');
+        }
+
+        function setLocationMode(mode) {
+            currentLocationMode = mode;
+            
+            if(mode === 'manual') {
+                document.getElementById('manualLocation').style.display = 'block';
+                document.getElementById('geoLocation').style.display = 'none';
+                document.getElementById('btnManual').classList.add('active');
+                document.getElementById('btnGeo').classList.remove('active');
+            } else {
+                document.getElementById('manualLocation').style.display = 'none';
+                document.getElementById('geoLocation').style.display = 'block';
+                document.getElementById('btnManual').classList.remove('active');
+                document.getElementById('btnGeo').classList.add('active');
+            }
+        }
+
+        function getCurrentPosition() {
+            if(!navigator.geolocation) {
+                alert('❌ Tu dispositivo no soporta geolocalización');
+                return;
+            }
+
+            const btn = document.querySelector('.btn-geo');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Obteniendo...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    document.getElementById('latValue').textContent = lat.toFixed(6);
+                    document.getElementById('lonValue').textContent = lon.toFixed(6);
+                    document.getElementById('geoLat').value = lat;
+                    document.getElementById('geoLon').value = lon;
+                    document.getElementById('geoInfo').classList.add('active');
+                    
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const address = data.display_name || 'Dirección no disponible';
+                            document.getElementById('geoAddress').textContent = address;
+                            document.getElementById('geoFullAddress').value = address;
+                        })
+                        .catch(() => {
+                            document.getElementById('geoAddress').textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                            document.getElementById('geoFullAddress').value = `Lat: ${lat}, Lon: ${lon}`;
+                        });
+                    
+                    btn.innerHTML = '<span>✅</span> Ubicación Obtenida';
+                    btn.disabled = false;
+                    showDebug('📍 GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
+                },
+                (error) => {
+                    alert('❌ Error GPS: ' + error.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        function filterAtestados() {
+            const text = document.getElementById('searchInput').value;
+            renderList(text);
+        }
+
+        function createNewAtestado() {
+            document.getElementById('currentId').value = '';
+            document.getElementById('numAtestado').value = '';
+            document.getElementById('fechaSiniestro').value = new Date().toISOString().split('T')[0];
+            document.getElementById('horaSiniestro').value = new Date().toTimeString().substring(0,5);
+            document.getElementById('lugarSiniestro').value = '';
+            document.getElementById('matriculas').value = '';
+            document.getElementById('geoLat').value = '';
+            document.getElementById('geoLon').value = '';
+            document.getElementById('geoFullAddress').value = '';
+            document.getElementById('geoInfo').classList.remove('active');
+            setLocationMode('manual');
+            
+            diligenciasTemp = [];
+            renderDiligenciasTemp();
+            updatePieChart();
+            updateReferencia();
+            
+            document.getElementById('deleteSection').style.display = 'none';
+            document.getElementById('mainView').style.display = 'none';
+            document.getElementById('detailView').style.display = 'block';
+            window.scrollTo(0, 0);
+            showDebug('➕ Nuevo atestado creado');
+        }
+
+        function openDetail(id) {
+            const atestado = atestados.find(a => a.id === id);
+            if(!atestado) {
+                showDebug('❌ No se encontró atestado: ' + id);
+                return;
+            }
+
+            showDebug('📂 Abriendo: #' + atestado.numAtestado);
+
+            document.getElementById('currentId').value = atestado.id;
+            document.getElementById('numAtestado').value = atestado.numAtestado;
+            document.getElementById('fechaSiniestro').value = atestado.fecha;
+            document.getElementById('horaSiniestro').value = atestado.hora || '09:00';
+            updateReferencia();
+            
+            if(atestado.usoGeo) {
+                setLocationMode('geo');
+                document.getElementById('geoLat').value = atestado.geoLat || '';
+                document.getElementById('geoLon').value = atestado.geoLon || '';
+                document.getElementById('geoFullAddress').value = atestado.geoAddress || '';
+                if(atestado.geoLat) {
+                    document.getElementById('latValue').textContent = parseFloat(atestado.geoLat).toFixed(6);
+                    document.getElementById('lonValue').textContent = parseFloat(atestado.geoLon).toFixed(6);
+                    document.getElementById('geoAddress').textContent = atestado.geoAddress || 'GPS';
+                    document.getElementById('geoInfo').classList.add('active');
+                }
+            } else {
+                setLocationMode('manual');
+                document.getElementById('lugarSiniestro').value = atestado.lugar;
+            }
+            
+            document.getElementById('matriculas').value = atestado.matriculas;
+            
+            diligenciasTemp = atestado.diligencias ? JSON.parse(JSON.stringify(atestado.diligencias)) : [];
+            showDebug('📋 Diligencias cargadas: ' + diligenciasTemp.length);
+            
+            renderDiligenciasTemp();
+            updatePieChart();
+            
+            const hasDiligencias = diligenciasTemp.length > 0;
+            document.getElementById('deleteSection').style.display = hasDiligencias ? 'block' : 'none';
+            
+            document.getElementById('mainView').style.display = 'none';
+            document.getElementById('detailView').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function goBack() {
+            document.getElementById('detailView').style.display = 'none';
+            document.getElementById('mainView').style.display = 'block';
+            renderList(document.getElementById('searchInput').value);
+        }
+
+        async function saveAtestado() {
+            const id = document.getElementById('currentId').value;
+            const numAtestado = document.getElementById('numAtestado').value.trim();
+            const fecha = document.getElementById('fechaSiniestro').value;
+            const hora = document.getElementById('horaSiniestro').value;
+            
+            if(!numAtestado || !fecha || !hora) {
+                alert('❌ Completa los campos obligatorios');
+                return;
+            }
+            
+            const usoGeo = currentLocationMode === 'geo';
+            const lugar = usoGeo ? 
+                (document.getElementById('geoFullAddress').value || `GPS`) : 
+                document.getElementById('lugarSiniestro').value.trim();
+            
+            const newData = {
+                numAtestado,
+                fecha,
+                hora,
+                lugar,
+                matriculas: document.getElementById('matriculas').value.trim(),
+                usoGeo,
+                geoLat: document.getElementById('geoLat').value,
+                geoLon: document.getElementById('geoLon').value,
+                geoAddress: document.getElementById('geoFullAddress').value,
+                diligencias: diligenciasTemp,
+                organizacion: "Policía Local C.P. 0855 UVAC Palma",
+                fechaModificacion: new Date().toISOString()
+            };
+
+            showDebug('💾 Guardando atestado #' + numAtestado);
+
+            const savedId = await saveToCloud(newData, id);
+            
+            if(!id) {
+                newData.id = savedId;
+                atestados.push(newData);
+            } else {
+                const index = atestados.findIndex(a => a.id === id);
+                if(index !== -1) {
+                    atestados[index] = { ...atestados[index], ...newData, id };
+                }
+            }
+
+            const completed = diligenciasTemp.filter(d => d.completed).length;
+            alert(`✅ Atestado #${numAtestado} GUARDADO\n📋 ${diligenciasTemp.length} diligencia(s)\n✅ ${completed} realizada(s)\n\n${isOnline && firebaseInitialized ? '📡 Sincronizado en la nube' : '⏳ Solo local'}`);
+            goBack();
+        }
+
+        async function deleteAtestado() {
+            const id = document.getElementById('currentId').value;
+            const atestado = atestados.find(a => a.id === id);
+            
+            if(!atestado) return;
+            
+            if(confirm(`⚠️ ¿Eliminar el Atestado #${atestado.numAtestado}?\n\nEsta acción NO se puede deshacer.`)) {
+                await deleteFromCloud(id);
+                atestados = atestados.filter(a => a.id !== id);
+                localStorage.setItem('atestadosDB', JSON.stringify(atestados));
+                
+                alert('🗑️ Atestado eliminado');
+                goBack();
+            }
+        }
+
+        function exportToExcel() {
+            if(atestados.length === 0) {
+                alert('❌ No hay atestados');
+                return;
+            }
+            
+            let csv = "text/csv;charset=utf-8,";
+            csv += "Organizacion,Numero,Fecha,Hora,Lugar,Matriculas,TotalDiligencias,Completadas,Pendientes,DetallesDiligencias\n";
+            
+            atestados.forEach(a => {
+                const total = (a.diligencias || []).length;
+                const completadas = (a.diligencias || []).filter(d => d.completed).length;
+                const pendientes = total - completadas;
+                
+                const dilDetails = (a.diligencias || []).map(d => 
+                    `${d.tipo} | ${formatDate(d.fecha)} ${d.hora || ''} | ${d.completed ? 'REALIZADA' : 'PENDIENTE'}`
+                ).join(' || ');
+                
+                csv += `"${a.organizacion}","${a.numAtestado}","${a.fecha}","${a.hora || ''}","${a.lugar}","${a.matriculas}",${total},${completadas},${pendientes},"${dilDetails}"\n`;
+            });
+
+            const link = document.createElement("a");
+            link.href = encodeURI(csv);
+            link.download = `Atestados_Policia_Palma_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            alert(`✅ Exportado ${atestados.length} atestado(s)`);
+        }
+
+        function formatDate(dateString) {
+            if(!dateString) return '';
+            return new Date(dateString).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            showDebug('🚀 Iniciando aplicación...');
+            
+            // Cargar datos locales
+            const cached = localStorage.getItem('atestadosDB');
+            if(cached) {
+                atestados = JSON.parse(cached);
+                showDebug('📦 Cargados ' + atestados.length + ' atestados de localStorage');
+            }
+            
+            // Escuchar cambios de conexión
+            window.addEventListener('online', () => { 
+                isOnline = true; 
+                showDebug('🌐 Conexión restaurada');
+                updateSyncStatus('online');
+            });
+            window.addEventListener('offline', () => { 
+                isOnline = false; 
+                showDebug('📡 Sin conexión');
+                updateSyncStatus('offline');
+            });
+            
+            // Inicializar estado
+            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
+            
+            // Renderizar lista inicial
+            renderList();
+            
+            // Configurar fecha por defecto
+            const fechaInput = document.getElementById('fechaDiligencia');
+            if(fechaInput) {
+                fechaInput.valueAsDate = new Date();
+            }
+            
+            showDebug('✅ Aplicación lista');
+        });
     </script>
 </body>
 </html>
