@@ -8,6 +8,20 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- OCR Tesseract -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <!-- Map Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         :root {
@@ -24,6 +38,14 @@
             --police-light: #2962ff;
         }
 
+        [data-theme="dark"] {
+            --bg-color: #1C1C1E;
+            --card-bg: #2C2C2E;
+            --text-main: #FFFFFF;
+            --text-sec: #98989D;
+            --border: #3A3A3C;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
@@ -31,6 +53,7 @@
             padding: 0;
             color: var(--text-main);
             -webkit-font-smoothing: antialiased;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         header {
@@ -49,6 +72,7 @@
             align-items: center;
             justify-content: center;
             gap: 15px;
+            flex-wrap: wrap;
         }
 
         .logo-container {
@@ -83,11 +107,33 @@
             opacity: 0.95;
         }
 
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .btn-icon {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
         .search-container {
             margin-top: 15px;
         }
 
-        input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="time"], select {
+        input[type="text"], input[type="date"], input[type="number"], input[type="tel"], input[type="time"], input[type="email"], input[type="password"], select, textarea {
             width: 100%;
             padding: 12px 15px;
             border-radius: 10px;
@@ -97,6 +143,12 @@
             outline: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             box-sizing: border-box;
+            color: #000;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
         }
 
         select {
@@ -118,6 +170,7 @@
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             position: relative;
             overflow: hidden;
+            transition: background-color 0.3s;
         }
 
         .card::before {
@@ -241,7 +294,7 @@
             cursor: pointer;
         }
 
-        .btn-geo, .btn-camera, .btn-calendar {
+        .btn-geo, .btn-camera, .btn-calendar, .btn-ocr {
             border: none;
             padding: 10px 15px;
             border-radius: 8px;
@@ -272,7 +325,12 @@
             color: white;
         }
 
-        .detail-view {
+        .btn-ocr {
+            background: #9B59B6;
+            color: white;
+        }
+
+        .detail-view, .login-view, .stats-view, .map-view {
             display: none;
             background: var(--bg-color);
             min-height: 100vh;
@@ -285,6 +343,7 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: background-color 0.3s;
         }
 
         .form-section h2 {
@@ -758,6 +817,157 @@
             50% { opacity: 0.5; }
         }
 
+        /* Login Styles */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .login-container h1 {
+            text-align: center;
+            color: var(--police-blue);
+            margin-bottom: 30px;
+        }
+
+        /* Stats Styles */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--police-blue);
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: var(--text-sec);
+            margin-top: 5px;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            height: 200px;
+            padding: 20px 0;
+        }
+
+        .bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--police-blue), var(--police-light));
+            border-radius: 5px 5px 0 0;
+            position: relative;
+            min-height: 20px;
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: var(--text-sec);
+            white-space: nowrap;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--police-blue);
+        }
+
+        /* Map Styles */
+        #map {
+            height: 400px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        /* Implicados Styles */
+        .implicado-card {
+            background: #f8f9fa;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .implicado-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .implicado-type {
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .add-implicado-btn {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        /* QR Code */
+        #qrContainer {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        /* OCR Result */
+        .ocr-result {
+            background: #E8F5E9;
+            border: 2px solid var(--success);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
         @media (min-width: 768px) {
             .container { max-width: 1200px; margin: 0 auto; }
             .list-container { height: calc(100vh - 200px); overflow-y: auto; }
@@ -780,15 +990,10 @@
     </style>
 </head>
 <body>
-    <!-- Indicador de sincronización -->
-    <div id="syncStatus" class="sync-status offline">
-        <div class="sync-indicator"></div>
-        <span id="syncText">📡 Offline</span>
-    </div>
-
-    <header>
-        <div class="header-content">
-            <div class="logo-container">
+    <!-- Login View -->
+    <div id="loginView" class="login-view" style="display:block;">
+        <div class="login-container">
+            <div class="logo-container" style="margin: 0 auto 20px auto; width: 100px;">
                 <svg class="logo-police" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
                     <rect width="400" height="200" fill="#1a237e"/>
                     <text x="200" y="90" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">POLICIA</text>
@@ -800,188 +1005,327 @@
                     <text x="200" y="150" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">LOCAL</text>
                 </svg>
             </div>
-            <div class="header-text">
-                <h1>Policía Local C.P. 0855</h1>
-                <h2>UVAC Palma</h2>
+            <h1>🚔 Acceso Agentes</h1>
+            <div class="form-group">
+                <label>Nombre del Agente</label>
+                <input type="text" id="agentName" placeholder="Ej: García López, Juan">
             </div>
+            <div class="form-group">
+                <label>Número de Placa</label>
+                <input type="text" id="agentBadge" placeholder="Ej: 0855-123">
+            </div>
+            <button class="btn btn-success" onclick="login()" style="width:100%;">🔐 Iniciar Sesión</button>
+            <p style="text-align:center; margin-top:20px; color:var(--text-sec); font-size:12px;">
+                Policía Local C.P. 0855 - UVAC Palma
+            </p>
         </div>
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="🔍 Buscar por Nº Atestado, Lugar, Fecha o Matrícula..." onkeyup="filterAtestados()">
-        </div>
-    </header>
-
-    <div id="mainView" class="container">
-        <div class="list-container" id="atestadosList"></div>
-        <button class="btn btn-float" onclick="createNewAtestado()">+</button>
     </div>
 
-    <div id="detailView" class="detail-view">
-        <div style="padding: 15px;">
-            <button onclick="goBack()" class="btn btn-outline" style="width:100%;">&lt; Volver al Listado</button>
-        </div>
+    <!-- Indicador de sincronización -->
+    <div id="syncStatus" class="sync-status offline" style="display:none;">
+        <div class="sync-indicator"></div>
+        <span id="syncText">📡 Offline</span>
+    </div>
 
-        <form id="atestadoForm">
-            <input type="hidden" id="currentId">
-            
-            <div class="form-section">
-                <div class="atestado-reference">
-                    <h2 id="displayReferencia">NUEVO ATESTADO</h2>
-                    <p>Referencia Oficial - Policía Local C.P. 0855 UVAC Palma</p>
+    <!-- Main App -->
+    <div id="mainApp" style="display:none;">
+        <header>
+            <div class="header-content">
+                <div class="logo-container">
+                    <svg class="logo-police" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="400" height="200" fill="#1a237e"/>
+                        <text x="200" y="90" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">POLICIA</text>
+                        <g transform="translate(50, 110)">
+                            <rect x="0" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                            <rect x="35" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                            <rect x="70" y="0" width="25" height="50" fill="#2962ff" transform="skewX(-20)"/>
+                        </g>
+                        <text x="200" y="150" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle">LOCAL</text>
+                    </svg>
                 </div>
-
-                <h2>📋 Datos Generales</h2>
-                <div class="form-group">
-                    <label>Número de Atestado (Referencia) *</label>
-                    <input type="text" id="numAtestado" required placeholder="Ej: 2024-001" oninput="updateReferencia()">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Fecha del Siniestro *</label>
-                        <input type="date" id="fechaSiniestro" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Hora del Siniestro *</label>
-                        <input type="time" id="horaSiniestro" required value="09:00">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>📍 Ubicación del Accidente</label>
-                    <div class="location-toggle">
-                        <button type="button" class="toggle-btn active" id="btnManual" onclick="setLocationMode('manual')">📝 Dirección Manual</button>
-                        <button type="button" class="toggle-btn" id="btnGeo" onclick="setLocationMode('geo')">📍 GPS</button>
-                    </div>
-                    
-                    <div id="manualLocation">
-                        <input type="text" id="lugarSiniestro" placeholder="Calle, número, Km...">
-                    </div>
-                    
-                    <div id="geoLocation" style="display:none;">
-                        <button type="button" class="btn-geo" onclick="getCurrentPosition()">
-                            <span>📍</span> Obtener Ubicación GPS
-                        </button>
-                        <div id="geoInfo" class="geo-info">
-                            <strong>Coordenadas:</strong><br>
-                            Lat: <span id="latValue">-</span><br>
-                            Lon: <span id="lonValue">-</span><br>
-                            <small id="geoAddress">Buscando...</small>
-                        </div>
-                        <input type="hidden" id="geoLat">
-                        <input type="hidden" id="geoLon">
-                        <input type="hidden" id="geoFullAddress">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>🚗 Matrículas Implicadas</label>
-                    <input type="text" id="matriculas" placeholder="Ej: 1234ABC, 5678XYZ">
+                <div class="header-text">
+                    <h1>Policía Local C.P. 0855</h1>
+                    <h2>UVAC Palma</h2>
                 </div>
             </div>
+            <div class="header-actions no-print">
+                <button class="btn-icon" onclick="toggleTheme()" title="Modo Oscuro">🌙</button>
+                <button class="btn-icon" onclick="showStats()" title="Estadísticas">📊</button>
+                <button class="btn-icon" onclick="showMap()" title="Mapa">🗺️</button>
+                <button class="btn-icon" onclick="logout()" title="Cerrar Sesión">🚪</button>
+            </div>
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar por Nº Atestado, Lugar, Fecha o Matrícula..." onkeyup="filterAtestados()">
+            </div>
+        </header>
 
+        <div id="mainView" class="container">
+            <div class="list-container" id="atestadosList"></div>
+            <button class="btn btn-float" onclick="createNewAtestado()">+</button>
+        </div>
+
+        <!-- Stats View -->
+        <div id="statsView" class="stats-view">
+            <div style="padding:15px;">
+                <button onclick="goBack()" class="btn btn-outline" style="width:100%;">&lt; Volver</button>
+            </div>
             <div class="form-section">
-                <h2>✅ Diligencias</h2>
+                <h2>📊 Estadísticas</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="number" id="statTotal">0</div>
+                        <div class="label">Total Atestados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="statThisMonth">0</div>
+                        <div class="label">Este Mes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="statPending">0</div>
+                        <div class="label">Diligencias Pendientes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="statAgents">0</div>
+                        <div class="label">Agentes Activos</div>
+                    </div>
+                </div>
                 
-                <div class="pie-chart-container">
-                    <div class="pie-chart" id="pieChart"></div>
-                    <div class="pie-legend">
-                        <div class="legend-item">
-                            <div class="legend-color completed"></div>
-                            <span>Realizadas: <strong id="completedCount">0</strong></span>
+                <div class="chart-container">
+                    <h3>📈 Atestados por Semana (Últimas 4)</h3>
+                    <div class="bar-chart" id="weekChart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>🕐 Horas Pico</h3>
+                    <div class="bar-chart" id="hourChart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>📍 Zonas Más Frecuentes</h3>
+                    <div id="topLocations"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map View -->
+        <div id="mapView" class="map-view">
+            <div style="padding:15px;">
+                <button onclick="goBack()" class="btn btn-outline" style="width:100%;">&lt; Volver</button>
+            </div>
+            <div class="form-section">
+                <h2>🗺️ Mapa de Accidentes</h2>
+                <div id="map"></div>
+                <p style="color:var(--text-sec); font-size:13px;">📍 Click en los marcadores para ver detalles del atestado</p>
+            </div>
+        </div>
+
+        <!-- Detail View -->
+        <div id="detailView" class="detail-view">
+            <div style="padding: 15px;">
+                <button onclick="goBack()" class="btn btn-outline" style="width:100%;">&lt; Volver al Listado</button>
+            </div>
+
+            <form id="atestadoForm">
+                <input type="hidden" id="currentId">
+                
+                <div class="form-section">
+                    <div class="atestado-reference">
+                        <h2 id="displayReferencia">NUEVO ATESTADO</h2>
+                        <p>Referencia Oficial - Policía Local C.P. 0855 UVAC Palma</p>
+                    </div>
+
+                    <h2>📋 Datos Generales</h2>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Instructor C.P. *</label>
+                            <input type="text" id="instructorCP" required placeholder="Nombre Instructor">
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-color pending"></div>
-                            <span>Pendientes: <strong id="pendingCount">0</strong></span>
+                        <div class="form-group">
+                            <label>Secretario C.P. *</label>
+                            <input type="text" id="secretarioCP" required placeholder="Nombre Secretario">
                         </div>
-                        <div class="pie-stats">
-                            <span id="progressPercent">0%</span>
-                            <div class="pie-label">Completado</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Número de Atestado (Referencia) *</label>
+                        <input type="text" id="numAtestado" required placeholder="Ej: 2024-001" oninput="updateReferencia()">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha del Siniestro *</label>
+                            <input type="date" id="fechaSiniestro" required>
                         </div>
+                        <div class="form-group">
+                            <label>Hora del Siniestro *</label>
+                            <input type="time" id="horaSiniestro" required value="09:00">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📍 Ubicación del Accidente</label>
+                        <div class="location-toggle">
+                            <button type="button" class="toggle-btn active" id="btnManual" onclick="setLocationMode('manual')">📝 Dirección Manual</button>
+                            <button type="button" class="toggle-btn" id="btnGeo" onclick="setLocationMode('geo')">📍 GPS</button>
+                        </div>
+                        
+                        <div id="manualLocation">
+                            <input type="text" id="lugarSiniestro" placeholder="Calle, número, Km...">
+                        </div>
+                        
+                        <div id="geoLocation" style="display:none;">
+                            <button type="button" class="btn-geo" onclick="getCurrentPosition()">
+                                <span>📍</span> Obtener Ubicación GPS
+                            </button>
+                            <div id="geoInfo" class="geo-info">
+                                <strong>Coordenadas:</strong><br>
+                                Lat: <span id="latValue">-</span><br>
+                                Lon: <span id="lonValue">-</span><br>
+                                <small id="geoAddress">Buscando...</small>
+                            </div>
+                            <input type="hidden" id="geoLat">
+                            <input type="hidden" id="geoLon">
+                            <input type="hidden" id="geoFullAddress">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🚗 Matrículas Implicadas</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="matriculas" placeholder="Ej: 1234ABC, 5678XYZ" style="flex:1;">
+                            <button type="button" class="btn-ocr" onclick="ocrMatricula()" style="width:auto;">
+                                📷 OCR
+                            </button>
+                        </div>
+                        <div id="ocrResult" class="ocr-result" style="display:none;"></div>
                     </div>
                 </div>
 
-                <div class="add-diligencia-section">
-                    <h3 style="margin-top:0; font-size:14px;">➕ Nueva Diligencia</h3>
-                    <div class="form-group">
-                        <label>Tipo de Diligencia</label>
-                        <select id="tipoDiligencia">
-                            <option value="">Seleccionar...</option>
-                            <option value="Diligencia de Hechos">Diligencia de Hechos</option>
-                            <option value="Inspección Ocular de la Vía">Inspección Ocular de la Vía</option>
-                            <option value="Inspección Ocular del Vehículo A">Inspección Ocular del Vehículo A</option>
-                            <option value="Inspección Ocular del Vehículo B">Inspección Ocular del Vehículo B</option>
-                            <option value="Inspección Ocular del Vehículo C">Inspección Ocular del Vehículo C</option>
-                            <option value="Inspección Ocular Conductor">Inspección Ocular Conductor</option>
-                            <option value="Inspección Ocular Peatón">Inspección Ocular Peatón</option>
-                            <option value="Inspección Ocular Testigo">Inspección Ocular Testigo</option>
-                            <option value="Croquis del Accidente">Croquis del Accidente</option>
-                            <option value="Denuncias Administrativas">Denuncias Administrativas</option>
-                            <option value="Diligencias Penales">Diligencias Penales</option>
-                            <option value="Otras Diligencias">Otras Diligencias</option>
-                        </select>
+                <!-- Implicados -->
+                <div class="form-section">
+                    <h2>👥 Implicados</h2>
+                    <div id="implicadosContainer"></div>
+                    <button type="button" class="add-implicado-btn" onclick="addImplicado()">+ Añadir Implicado</button>
+                </div>
+
+                <div class="form-section">
+                    <h2>✅ Diligencias</h2>
+                    
+                    <div class="pie-chart-container">
+                        <div class="pie-chart" id="pieChart"></div>
+                        <div class="pie-legend">
+                            <div class="legend-item">
+                                <div class="legend-color completed"></div>
+                                <span>Realizadas: <strong id="completedCount">0</strong></span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color pending"></div>
+                                <span>Pendientes: <strong id="pendingCount">0</strong></span>
+                            </div>
+                            <div class="pie-stats">
+                                <span id="progressPercent">0%</span>
+                                <div class="pie-label">Completado</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Fecha de la Diligencia</label>
-                        <input type="date" id="fechaDiligencia">
+
+                    <div class="add-diligencia-section">
+                        <h3 style="margin-top:0; font-size:14px;">➕ Nueva Diligencia</h3>
+                        <div class="form-group">
+                            <label>Tipo de Diligencia</label>
+                            <select id="tipoDiligencia">
+                                <option value="">Seleccionar...</option>
+                                <option value="Diligencia de Hechos">Diligencia de Hechos</option>
+                                <option value="Inspección Ocular de la Vía">Inspección Ocular de la Vía</option>
+                                <option value="Inspección Ocular del Vehículo A">Inspección Ocular del Vehículo A</option>
+                                <option value="Inspección Ocular del Vehículo B">Inspección Ocular del Vehículo B</option>
+                                <option value="Inspección Ocular del Vehículo C">Inspección Ocular del Vehículo C</option>
+                                <option value="Inspección Ocular Conductor">Inspección Ocular Conductor</option>
+                                <option value="Inspección Ocular Peatón">Inspección Ocular Peatón</option>
+                                <option value="Inspección Ocular Testigo">Inspección Ocular Testigo</option>
+                                <option value="Croquis del Accidente">Croquis del Accidente</option>
+                                <option value="Denuncias Administrativas">Denuncias Administrativas</option>
+                                <option value="Diligencias Penales">Diligencias Penales</option>
+                                <option value="Otras Diligencias">Otras Diligencias</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de la Diligencia</label>
+                            <input type="date" id="fechaDiligencia">
+                        </div>
+                        <div class="form-group">
+                            <label>Hora de la Diligencia</label>
+                            <input type="time" id="horaDiligencia" value="09:00">
+                        </div>
+                        <button type="button" class="btn btn-success" onclick="addDiligencia()" style="width:100%;">
+                            ➕ Añadir Diligencia (Pendiente)
+                        </button>
                     </div>
-                    <div class="form-group">
-                        <label>Hora de la Diligencia</label>
-                        <input type="time" id="horaDiligencia" value="09:00">
+
+                    <div class="diligencias-section">
+                        <div class="section-header pending-header">
+                            <div class="section-title">
+                                <span>⏳ Diligencias Pendientes</span>
+                                <span class="section-count" id="pendingCountBadge">0</span>
+                            </div>
+                        </div>
+                        <div id="listaPendientes">
+                            <div class="empty-message">No hay diligencias pendientes</div>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-success" onclick="addDiligencia()" style="width:100%;">
-                        ➕ Añadir Diligencia (Pendiente)
+
+                    <div class="diligencias-section">
+                        <div class="section-header completed-header">
+                            <div class="section-title">
+                                <span>✅ Diligencias Realizadas</span>
+                                <span class="section-count" id="completedCountBadge">0</span>
+                            </div>
+                        </div>
+                        <div id="listaRealizadas">
+                            <div class="empty-message">No hay diligencias realizadas</div>
+                        </div>
+                    </div>
+
+                    <div id="debugInfo" class="debug-info"></div>
+                </div>
+
+                <div class="form-section">
+                    <div class="button-group">
+                        <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar</button>
+                        <button type="button" class="btn" onclick="generatePDF()">📄 PDF</button>
+                        <button type="button" class="btn" onclick="showQR()">📱 QR</button>
+                        <button type="button" class="btn" onclick="exportToExcel()">📊 Excel</button>
+                    </div>
+                </div>
+
+                <div class="delete-section" id="deleteSection" style="display:none;">
+                    <h3>🗑️ Eliminar Atestado</h3>
+                    <p style="font-size:13px; color:var(--text-sec); margin-bottom:15px;">
+                        Esta acción es irreversible.
+                    </p>
+                    <button type="button" class="btn btn-danger" id="btnDelete" onclick="deleteAtestado()" style="width:100%;">
+                        🗑️ Eliminar Permanentemente
                     </button>
                 </div>
+            </form>
+        </div>
 
-                <div class="diligencias-section">
-                    <div class="section-header pending-header">
-                        <div class="section-title">
-                            <span>⏳ Diligencias Pendientes</span>
-                            <span class="section-count" id="pendingCountBadge">0</span>
-                        </div>
-                    </div>
-                    <div id="listaPendientes">
-                        <div class="empty-message">No hay diligencias pendientes</div>
-                    </div>
-                </div>
-
-                <div class="diligencias-section">
-                    <div class="section-header completed-header">
-                        <div class="section-title">
-                            <span>✅ Diligencias Realizadas</span>
-                            <span class="section-count" id="completedCountBadge">0</span>
-                        </div>
-                    </div>
-                    <div id="listaRealizadas">
-                        <div class="empty-message">No hay diligencias realizadas</div>
-                    </div>
-                </div>
-
-                <div id="debugInfo" class="debug-info"></div>
+        <!-- QR Modal -->
+        <div id="qrModal" class="modal">
+            <div style="background:white; padding:30px; border-radius:15px; max-width:400px; text-align:center;">
+                <span class="modal-close" onclick="closeQR()" style="color:#000; position:relative; top:-20px;">&times;</span>
+                <h3 style="color:var(--police-blue);">📱 Código QR Atestado</h3>
+                <div id="qrContainer"></div>
+                <p style="color:var(--text-sec); font-size:13px;">Escanea para acceder al atestado</p>
+                <button class="btn" onclick="closeQR()" style="width:100%;">Cerrar</button>
             </div>
+        </div>
 
-            <div class="form-section">
-                <div class="button-group">
-                    <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar Atestado</button>
-                    <button type="button" class="btn" onclick="exportToExcel()">📊 Exportar Excel</button>
-                </div>
-            </div>
-
-            <div class="delete-section" id="deleteSection" style="display:none;">
-                <h3>🗑️ Eliminar Atestado</h3>
-                <p style="font-size:13px; color:var(--text-sec); margin-bottom:15px;">
-                    Esta acción es irreversible.
-                </p>
-                <button type="button" class="btn btn-danger" id="btnDelete" onclick="deleteAtestado()" style="width:100%;">
-                    🗑️ Eliminar Permanentemente
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <div id="fotoModal" class="modal" onclick="closeModal()">
-        <span class="modal-close">&times;</span>
-        <img id="modalImg" class="modal-img" src="" alt="Foto ampliada">
+        <div id="fotoModal" class="modal" onclick="closeModal()">
+            <span class="modal-close">&times;</span>
+            <img id="modalImg" class="modal-img" src="" alt="Foto ampliada">
+        </div>
     </div>
 
     <script>
@@ -991,13 +1335,16 @@
         let atestados = [];
         let currentLocationMode = 'manual';
         let diligenciasTemp = [];
+        let implicadosTemp = [];
         let currentDiligenciaId = null;
         let isOnline = navigator.onLine;
         let db = null;
         let firebaseInitialized = false;
+        let currentAgent = null;
+        let map = null;
 
         // ============================================
-        // FIREBASE CONFIGURATION - TUS CREDENCIALES
+        // FIREBASE CONFIGURATION
         // ============================================
         const firebaseConfig = {
             apiKey: "AIzaSyC9fjYSmXfzdtDtrs-B0JfS9iotqDUPJY",
@@ -1013,10 +1360,8 @@
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             firebaseInitialized = true;
-            updateSyncStatus('online');
             console.log('✅ Firebase inicializado correctamente');
             
-            // Escuchar cambios en tiempo real
             db.collection('atestados').onSnapshot(
                 (snapshot) => {
                     atestados = [];
@@ -1024,7 +1369,9 @@
                         atestados.push({ id: doc.id, ...doc.data() });
                     });
                     localStorage.setItem('atestadosDB', JSON.stringify(atestados));
-                    renderList();
+                    if(document.getElementById('mainApp').style.display !== 'none') {
+                        renderList();
+                    }
                     console.log('📡 Sincronizados ' + atestados.length + ' atestados');
                 },
                 (error) => {
@@ -1038,6 +1385,49 @@
             const cached = localStorage.getItem('atestadosDB');
             if(cached) {
                 atestados = JSON.parse(cached);
+            }
+        }
+
+        // ============================================
+        // LOGIN SYSTEM
+        // ============================================
+        function login() {
+            const name = document.getElementById('agentName').value.trim();
+            const badge = document.getElementById('agentBadge').value.trim();
+            
+            if(!name || !badge) {
+                alert('❌ Completa nombre y placa');
+                return;
+            }
+            
+            currentAgent = { name, badge, loginTime: new Date().toISOString() };
+            localStorage.setItem('currentAgent', JSON.stringify(currentAgent));
+            
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('syncStatus').style.display = 'flex';
+            
+            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
+            renderList();
+            
+            showDebug('👮 Agente: ' + name + ' (' + badge + ')');
+        }
+
+        function logout() {
+            if(confirm('¿Cerrar sesión?')) {
+                localStorage.removeItem('currentAgent');
+                location.reload();
+            }
+        }
+
+        function checkLogin() {
+            const saved = localStorage.getItem('currentAgent');
+            if(saved) {
+                currentAgent = JSON.parse(saved);
+                document.getElementById('loginView').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.getElementById('syncStatus').style.display = 'flex';
+                renderList();
             }
         }
 
@@ -1064,7 +1454,18 @@
         }
 
         // ============================================
-        // COMPRESIÓN DE FOTOS
+        // DARK MODE
+        // ============================================
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            showDebug('🌙 Modo: ' + (newTheme === 'dark' ? 'Oscuro' : 'Claro'));
+        }
+
+        // ============================================
+        // IMAGE COMPRESSION
         // ============================================
         function compressImage(file, maxWidth = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
@@ -1098,6 +1499,51 @@
         }
 
         // ============================================
+        // OCR FOR LICENSE PLATES
+        // ============================================
+        async function ocrMatricula() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                
+                const ocrResult = document.getElementById('ocrResult');
+                ocrResult.style.display = 'block';
+                ocrResult.textContent = '🔄 Leyendo matrícula...';
+                
+                try {
+                    const { data: { text } } = await Tesseract.recognize(file, 'spa');
+                    const matricula = text.match(/[0-9]{4}[A-Z]{3}/i);
+                    
+                    if(matricula) {
+                        ocrResult.textContent = '✅ Matrícula detectada: ' + matricula[0].toUpperCase();
+                        ocrResult.style.background = '#D4EDDA';
+                        ocrResult.style.borderColor = '#28A745';
+                        
+                        const current = document.getElementById('matriculas').value;
+                        document.getElementById('matriculas').value = current ? 
+                            current + ', ' + matricula[0].toUpperCase() : 
+                            matricula[0].toUpperCase();
+                    } else {
+                        ocrResult.textContent = '⚠️ No se detectó matrícula. Texto: ' + text.substring(0, 50);
+                        ocrResult.style.background = '#FFF3CD';
+                        ocrResult.style.borderColor = '#FFC107';
+                    }
+                } catch(error) {
+                    ocrResult.textContent = '❌ Error OCR: ' + error.message;
+                    ocrResult.style.background = '#F8D7DA';
+                    ocrResult.style.borderColor = '#DC3545';
+                }
+            };
+            
+            input.click();
+        }
+
+        // ============================================
         // FIREBASE FUNCTIONS
         // ============================================
         async function saveToCloud(data, id) {
@@ -1109,13 +1555,12 @@
             try {
                 updateSyncStatus('syncing');
                 
-                // Verificar tamaño de datos
                 const dataSize = JSON.stringify(data).length;
-                const maxDocSize = 1048576; // 1MB en bytes
+                const maxDocSize = 1048576;
                 
                 if(dataSize > maxDocSize) {
-                    showDebug('⚠️ Datos demasiado grandes (' + Math.round(dataSize/1024) + 'KB). Máximo 1MB');
-                    alert('⚠️ Las fotos ocupan demasiado espacio. Se guardarán solo localmente.');
+                    showDebug('⚠️ Datos demasiado grandes (' + Math.round(dataSize/1024) + 'KB)');
+                    alert('⚠️ Las fotos ocupan demasiado. Solo local.');
                     localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                     updateSyncStatus('online');
                     return id || Date.now().toString();
@@ -1133,26 +1578,15 @@
                 return id;
             } catch(error) {
                 console.error('❌ Error guardando:', error);
-                
-                if(error.code === 'failed-precondition' || error.message.includes('size')) {
-                    showDebug('❌ Error: Documento demasiado grande');
-                    alert('❌ Las fotos son demasiado grandes. Se guardó solo localmente.');
-                }
-                
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 updateSyncStatus('error');
-                
-                setTimeout(() => {
-                    updateSyncStatus('online');
-                }, 3000);
-                
+                setTimeout(() => updateSyncStatus('online'), 3000);
                 return id || Date.now().toString();
             }
         }
 
         async function deleteFromCloud(id) {
             if(!firebaseInitialized || !isOnline || !db) return;
-            
             try {
                 await db.collection('atestados').doc(id).delete();
             } catch(error) {
@@ -1211,6 +1645,7 @@
                     </div>
                     <div class="card-location">${ubicacion}</div>
                     <div class="card-plates">🚗 ${a.matriculas || 'Sin matrículas'}</div>
+                    ${a.instructorCP ? `<div style="font-size:12px; color:var(--text-sec);">👮 Instructor: ${a.instructorCP}</div>` : ''}
                     ${totalDiligencias > 0 ? `
                         <div class="card-stats">
                             <span class="stat-badge stat-pending">⏳ ${totalDiligencias - diligenciasCompletadas}</span>
@@ -1235,24 +1670,20 @@
             const hora = document.getElementById('horaDiligencia').value;
             
             if(!tipo || !fecha) {
-                alert('❌ Selecciona un tipo de diligencia y una fecha');
+                alert('❌ Selecciona tipo y fecha');
                 return;
             }
             
-            const newDiligencia = {
+            diligenciasTemp.push({
                 id: generateDiligenciaId(),
-                tipo: tipo,
-                fecha: fecha,
-                hora: hora,
+                tipo, fecha, hora,
                 completed: false,
                 completedDate: null,
                 fotos: [],
                 recordatorioEnviado: false
-            };
+            });
             
-            diligenciasTemp.push(newDiligencia);
-            showDebug('➕ Diligencia añadida: ' + tipo);
-            
+            showDebug('➕ Diligencia: ' + tipo);
             renderDiligenciasTemp();
             updatePieChart();
             
@@ -1301,7 +1732,7 @@
             if(dil.fotos && dil.fotos.length > 0) {
                 fotosHtml = `
                     <div class="fotos-section">
-                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s) (comprimidas)</div>
+                        <div class="fotos-count">📸 ${dil.fotos.length} foto(s)</div>
                         <div class="fotos-grid">
                             ${dil.fotos.slice(0, 4).map((foto) => `
                                 <img src="${foto}" class="foto-thumbnail" onclick="event.stopPropagation(); showFoto('${foto}')" alt="Foto">
@@ -1327,18 +1758,12 @@
                 </div>
                 ${fotosHtml}
                 <div class="diligencia-actions">
-                    <button type="button" class="btn-camera" onclick="event.stopPropagation(); showCameraModal('${dil.id}')">
-                        📸 Cámara
-                    </button>
-                    <button type="button" class="btn-calendar" onclick="event.stopPropagation(); addCalendarReminder('${dil.id}')">
-                        🔔 Recordatorio
-                    </button>
+                    <button type="button" class="btn-camera" onclick="event.stopPropagation(); showCameraModal('${dil.id}')">📸</button>
+                    <button type="button" class="btn-calendar" onclick="event.stopPropagation(); addCalendarReminder('${dil.id}')">🔔</button>
                     <button type="button" class="btn-toggle-status ${isCompleted ? '' : 'pending'}" onclick="event.stopPropagation(); toggleDiligenciaStatus('${dil.id}')">
                         ${isCompleted ? '↩️ Pendiente' : '✅ Realizada'}
                     </button>
-                    <button type="button" class="btn-delete-diligencia" onclick="event.stopPropagation(); deleteDiligencia('${dil.id}')">
-                        🗑️
-                    </button>
+                    <button type="button" class="btn-delete-diligencia" onclick="event.stopPropagation(); deleteDiligencia('${dil.id}')">🗑️</button>
                 </div>
             `;
             
@@ -1350,16 +1775,14 @@
             if(dil) {
                 dil.completed = !dil.completed;
                 dil.completedDate = dil.completed ? new Date().toISOString() : null;
-                showDebug('🔄 Estado cambiado: ' + (dil.completed ? '✅' : '⏳'));
                 renderDiligenciasTemp();
                 updatePieChart();
             }
         }
 
         function deleteDiligencia(diligenciaId) {
-            if(confirm('¿Eliminar esta diligencia?')) {
+            if(confirm('¿Eliminar diligencia?')) {
                 diligenciasTemp = diligenciasTemp.filter(d => d.id !== diligenciaId);
-                showDebug('🗑️ Diligencia eliminada');
                 renderDiligenciasTemp();
                 updatePieChart();
             }
@@ -1368,25 +1791,21 @@
         function updatePieChart() {
             const total = diligenciasTemp.length;
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            const pending = total - completed;
             const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-            
             const completedDeg = total > 0 ? (completed / total) * 360 : 0;
             
             const pieChart = document.getElementById('pieChart');
             if(pieChart) {
-                if(completedDeg > 0) {
-                    pieChart.style.background = `conic-gradient(var(--success) 0deg ${completedDeg}deg, var(--warning) ${completedDeg}deg 360deg)`;
-                } else {
-                    pieChart.style.background = `conic-gradient(var(--warning) 0deg 360deg)`;
-                }
+                pieChart.style.background = completedDeg > 0 ? 
+                    `conic-gradient(var(--success) 0deg ${completedDeg}deg, var(--warning) ${completedDeg}deg 360deg)` :
+                    `conic-gradient(var(--warning) 0deg 360deg)`;
             }
             
             document.getElementById('progressPercent').textContent = percentage + '%';
             document.getElementById('completedCount').textContent = completed;
-            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('pendingCount').textContent = total - completed;
             document.getElementById('completedCountBadge').textContent = completed;
-            document.getElementById('pendingCountBadge').textContent = pending;
+            document.getElementById('pendingCountBadge').textContent = total - completed;
         }
 
         async function showCameraModal(diligenciaId) {
@@ -1394,11 +1813,9 @@
             const dil = diligenciasTemp.find(d => d.id === diligenciaId);
             
             if(dil && dil.fotos.length >= 5) {
-                alert('⚠️ Máximo 5 fotos por diligencia (para evitar errores de tamaño)');
+                alert('⚠️ Máximo 5 fotos por diligencia');
                 return;
             }
-            
-            showDebug('📸 Abriendo cámara...');
             
             const input = document.createElement('input');
             input.type = 'file';
@@ -1408,32 +1825,20 @@
             
             input.onchange = async (e) => {
                 const files = e.target.files;
-                showDebug('📷 ' + files.length + ' fotos seleccionadas');
-                
                 if(files.length > 0) {
                     const dil = diligenciasTemp.find(d => d.id === diligenciaId);
                     if(dil) {
                         const maxFotos = 5 - dil.fotos.length;
                         const filesToProcess = Array.from(files).slice(0, maxFotos);
                         
-                        if(files.length > maxFotos) {
-                            alert('⚠️ Solo se añadirán ' + maxFotos + ' fotos (máximo 5 por diligencia)');
-                        }
-                        
-                        let processed = 0;
                         for(const file of filesToProcess) {
                             try {
-                                showDebug('🔄 Comprimiendo foto...');
                                 const compressed = await compressImage(file, 800, 0.7);
                                 dil.fotos.push(compressed);
-                                processed++;
-                                showDebug('✅ Foto comprimida ' + processed + '/' + filesToProcess.length);
                             } catch(error) {
                                 console.error('❌ Error comprimiendo:', error);
                             }
                         }
-                        
-                        showDebug('✅ ' + dil.fotos.length + ' fotos totales');
                         renderDiligenciasTemp();
                     }
                 }
@@ -1447,51 +1852,36 @@
             if(!dil) return;
             
             const atestadoNum = document.getElementById('numAtestado').value || 'XXXX';
-            const title = `Atestado ${atestadoNum} - ${dil.tipo}`;
-            const description = `Diligencia del Atestado #${atestadoNum}\nTipo: ${dil.tipo}\n\nPolicía Local C.P. 0855 UVAC Palma`;
-            
             const eventDate = new Date(dil.fecha);
             if(dil.hora) {
                 const [hours, minutes] = dil.hora.split(':');
                 eventDate.setHours(parseInt(hours), parseInt(minutes), 0);
             }
             
-            const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000);
-            
             const icsContent = [
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
                 'PRODID:-//Policia Local Palma//Atestados//ES',
-                'CALSCALE:GREGORIAN',
-                'METHOD:PUBLISH',
                 'BEGIN:VEVENT',
-                `UID:${diligenciaId}@atestados-policia-palma`,
-                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `UID:${diligenciaId}@atestados`,
                 `DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-                `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-                `SUMMARY:${title}`,
-                `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                `SUMMARY:Atestado ${atestadoNum} - ${dil.tipo}`,
                 'LOCATION:UVAC Palma',
                 'BEGIN:VALARM',
                 'TRIGGER:-PT15M',
                 'ACTION:DISPLAY',
-                'DESCRIPTION:Recordatorio de diligencia',
+                'DESCRIPTION:Recordatorio',
                 'END:VALARM',
                 'END:VEVENT',
                 'END:VCALENDAR'
             ].join('\r\n');
             
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Recordatorio_${atestadoNum}_${dil.tipo.replace(/\s+/g, '_')}.ics`;
-            document.body.appendChild(link);
+            link.download = `Recordatorio_${atestadoNum}.ics`;
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            alert(`✅ Recordatorio generado\n📅 ${formatDate(dil.fecha)} ${dil.hora}`);
         }
 
         function showFoto(fotoSrc) {
@@ -1505,28 +1895,19 @@
 
         function setLocationMode(mode) {
             currentLocationMode = mode;
-            
-            if(mode === 'manual') {
-                document.getElementById('manualLocation').style.display = 'block';
-                document.getElementById('geoLocation').style.display = 'none';
-                document.getElementById('btnManual').classList.add('active');
-                document.getElementById('btnGeo').classList.remove('active');
-            } else {
-                document.getElementById('manualLocation').style.display = 'none';
-                document.getElementById('geoLocation').style.display = 'block';
-                document.getElementById('btnManual').classList.remove('active');
-                document.getElementById('btnGeo').classList.add('active');
-            }
+            document.getElementById('manualLocation').style.display = mode === 'manual' ? 'block' : 'none';
+            document.getElementById('geoLocation').style.display = mode === 'geo' ? 'block' : 'none';
+            document.getElementById('btnManual').classList.toggle('active', mode === 'manual');
+            document.getElementById('btnGeo').classList.toggle('active', mode === 'geo');
         }
 
         function getCurrentPosition() {
             if(!navigator.geolocation) {
-                alert('❌ Tu dispositivo no soporta geolocalización');
+                alert('❌ No soporta GPS');
                 return;
             }
 
             const btn = document.querySelector('.btn-geo');
-            const originalText = btn.innerHTML;
             btn.innerHTML = '<span>⏳</span> Obteniendo...';
             btn.disabled = true;
 
@@ -1542,38 +1923,335 @@
                     document.getElementById('geoInfo').classList.add('active');
                     
                     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-                        .then(response => response.json())
+                        .then(r => r.json())
                         .then(data => {
                             const address = data.display_name || 'Dirección no disponible';
                             document.getElementById('geoAddress').textContent = address;
                             document.getElementById('geoFullAddress').value = address;
-                        })
-                        .catch(() => {
-                            document.getElementById('geoAddress').textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                            document.getElementById('geoFullAddress').value = `Lat: ${lat}, Lon: ${lon}`;
                         });
                     
                     btn.innerHTML = '<span>✅</span> Ubicación Obtenida';
                     btn.disabled = false;
-                    showDebug('📍 GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
                 },
                 (error) => {
                     alert('❌ Error GPS: ' + error.message);
-                    btn.innerHTML = originalText;
+                    btn.innerHTML = '<span>📍</span> Obtener Ubicación GPS';
                     btn.disabled = false;
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         }
 
+        // ============================================
+        // IMPLICADOS MANAGEMENT
+        // ============================================
+        function addImplicado() {
+            const id = 'imp_' + Date.now();
+            implicadosTemp.push({
+                id,
+                tipo: 'Conductor',
+                nombre: '',
+                dni: '',
+                telefono: '',
+                seguro: '',
+                aseguradora: '',
+                vehiculo: '',
+                declaraciones: ''
+            });
+            renderImplicados();
+        }
+
+        function renderImplicados() {
+            const container = document.getElementById('implicadosContainer');
+            if(!container) return;
+            
+            if(implicadosTemp.length === 0) {
+                container.innerHTML = '<div class="empty-message">No hay implicados registrados</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            implicadosTemp.forEach((imp, index) => {
+                const card = document.createElement('div');
+                card.className = 'implicado-card';
+                card.innerHTML = `
+                    <div class="implicado-header">
+                        <span class="implicado-type">${imp.tipo}</span>
+                        <button type="button" class="btn-delete-diligencia" onclick="deleteImplicado('${imp.id}')" style="padding:5px 10px;">🗑️</button>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" value="${imp.nombre}" onchange="updateImplicado('${imp.id}', 'nombre', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>DNI/NIE</label>
+                            <input type="text" value="${imp.dni}" onchange="updateImplicado('${imp.id}', 'dni', this.value)">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="tel" value="${imp.telefono}" onchange="updateImplicado('${imp.id}', 'telefono', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select onchange="updateImplicado('${imp.id}', 'tipo', this.value)">
+                                <option value="Conductor" ${imp.tipo === 'Conductor' ? 'selected' : ''}>Conductor</option>
+                                <option value="Peatón" ${imp.tipo === 'Peatón' ? 'selected' : ''}>Peatón</option>
+                                <option value="Testigo" ${imp.tipo === 'Testigo' ? 'selected' : ''}>Testigo</option>
+                                <option value="Pasajero" ${imp.tipo === 'Pasajero' ? 'selected' : ''}>Pasajero</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Aseguradora</label>
+                            <input type="text" value="${imp.aseguradora}" onchange="updateImplicado('${imp.id}', 'aseguradora', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Nº Póliza</label>
+                            <input type="text" value="${imp.seguro}" onchange="updateImplicado('${imp.id}', 'seguro', this.value)">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Matrícula Vehículo</label>
+                        <input type="text" value="${imp.vehiculo}" onchange="updateImplicado('${imp.id}', 'vehiculo', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Declaración</label>
+                        <textarea onchange="updateImplicado('${imp.id}', 'declaraciones', this.value)">${imp.declaraciones}</textarea>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateImplicado(id, field, value) {
+            const imp = implicadosTemp.find(i => i.id === id);
+            if(imp) imp[field] = value;
+        }
+
+        function deleteImplicado(id) {
+            if(confirm('¿Eliminar implicado?')) {
+                implicadosTemp = implicadosTemp.filter(i => i.id !== id);
+                renderImplicados();
+            }
+        }
+
+        // ============================================
+        // STATS DASHBOARD
+        // ============================================
+        function showStats() {
+            document.getElementById('mainView').style.display = 'none';
+            document.getElementById('statsView').style.display = 'block';
+            window.scrollTo(0, 0);
+            
+            // Calculate stats
+            const total = atestados.length;
+            const thisMonth = atestados.filter(a => {
+                const d = new Date(a.fecha);
+                const now = new Date();
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            }).length;
+            
+            const pending = atestados.reduce((acc, a) => {
+                return acc + (a.diligencias ? a.diligencias.filter(d => !d.completed).length : 0);
+            }, 0);
+            
+            const agents = [...new Set(atestados.map(a => a.agentName).filter(n => n))].length;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statThisMonth').textContent = thisMonth;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statAgents').textContent = agents;
+            
+            // Week chart
+            const weeks = [0, 0, 0, 0];
+            atestados.forEach(a => {
+                const d = new Date(a.fecha);
+                const now = new Date();
+                const diffWeeks = Math.floor((now - d) / (7 * 24 * 60 * 60 * 1000));
+                if(diffWeeks < 4) weeks[3 - diffWeeks]++;
+            });
+            
+            const maxWeek = Math.max(...weeks, 1);
+            document.getElementById('weekChart').innerHTML = weeks.map((v, i) => `
+                <div class="bar" style="height: ${(v / maxWeek) * 150}px;">
+                    <span class="bar-value">${v}</span>
+                    <span class="bar-label">Sem ${i + 1}</span>
+                </div>
+            `).join('');
+            
+            // Hour chart
+            const hours = {};
+            atestados.forEach(a => {
+                const h = a.hora ? parseInt(a.hora.split(':')[0]) : 12;
+                hours[h] = (hours[h] || 0) + 1;
+            });
+            
+            const peakHours = Object.entries(hours)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            const maxHour = Math.max(...peakHours.map(h => h[1]), 1);
+            document.getElementById('hourChart').innerHTML = peakHours.map(([h, v]) => `
+                <div class="bar" style="height: ${(v / maxHour) * 150}px;">
+                    <span class="bar-value">${v}</span>
+                    <span class="bar-label">${h}:00</span>
+                </div>
+            `).join('');
+            
+            // Top locations
+            const locations = {};
+            atestados.forEach(a => {
+                const loc = a.lugar || 'Sin ubicación';
+                locations[loc] = (locations[loc] || 0) + 1;
+            });
+            
+            const topLocations = Object.entries(locations)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            document.getElementById('topLocations').innerHTML = topLocations.map(([loc, count], i) => `
+                <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+                    <span>${i + 1}. ${loc.substring(0, 40)}${loc.length > 40 ? '...' : ''}</span>
+                    <strong>${count}</strong>
+                </div>
+            `).join('');
+        }
+
+        // ============================================
+        // MAP VIEW
+        // ============================================
+        function showMap() {
+            document.getElementById('mainView').style.display = 'none';
+            document.getElementById('mapView').style.display = 'block';
+            window.scrollTo(0, 0);
+            
+            setTimeout(() => {
+                if(map) {
+                    map.remove();
+                }
+                
+                map = L.map('map').setView([39.5696, 2.6502], 13); // Palma de Mallorca
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                
+                atestados.forEach(a => {
+                    if(a.geoLat && a.geoLon) {
+                        L.marker([parseFloat(a.geoLat), parseFloat(a.geoLon)])
+                            .addTo(map)
+                            .bindPopup(`<strong>#${a.numAtestado}</strong><br>${a.fecha}<br>${a.lugar}`);
+                    }
+                });
+            }, 100);
+        }
+
+        // ============================================
+        // QR CODE
+        // ============================================
+        function showQR() {
+            const numAtestado = document.getElementById('numAtestado').value;
+            if(!numAtestado) {
+                alert('❌ Guarda el atestado primero');
+                return;
+            }
+            
+            document.getElementById('qrContainer').innerHTML = '';
+            new QRCode(document.getElementById('qrContainer'), {
+                text: `Atestado #${numAtestado}\nPolicía Local C.P. 0855 UVAC Palma\n${new Date().toLocaleDateString()}`,
+                width: 200,
+                height: 200
+            });
+            
+            document.getElementById('qrModal').classList.add('active');
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').classList.remove('active');
+        }
+
+        // ============================================
+        // PDF GENERATION
+        // ============================================
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const numAtestado = document.getElementById('numAtestado').value || 'S/N';
+            const fecha = document.getElementById('fechaSiniestro').value;
+            const hora = document.getElementById('horaSiniestro').value;
+            const lugar = document.getElementById('lugarSiniestro').value;
+            const instructor = document.getElementById('instructorCP').value;
+            const secretario = document.getElementById('secretarioCP').value;
+            
+            // Header
+            doc.setFillColor(26, 35, 126);
+            doc.rect(0, 0, 210, 30, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text('POLICÍA LOCAL C.P. 0855', 105, 15, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text('UVAC PALMA - ATESTADO DE TRÁFICO', 105, 25, { align: 'center' });
+            
+            // Info
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
+            doc.text(`Número: ${numAtestado}`, 20, 45);
+            doc.text(`Fecha: ${fecha}`, 20, 52);
+            doc.text(`Hora: ${hora}`, 20, 59);
+            doc.text(`Lugar: ${lugar}`, 20, 66);
+            doc.text(`Instructor C.P.: ${instructor}`, 20, 73);
+            doc.text(`Secretario C.P.: ${secretario}`, 20, 80);
+            
+            // Diligencias
+            doc.setFontSize(12);
+            doc.text('DILIGENCIAS', 20, 95);
+            doc.setFontSize(10);
+            
+            let y = 102;
+            diligenciasTemp.forEach((d, i) => {
+                const status = d.completed ? '✅' : '⏳';
+                doc.text(`${i + 1}. ${status} ${d.tipo} - ${d.fecha}`, 20, y);
+                y += 7;
+            });
+            
+            // Implicados
+            y += 10;
+            doc.setFontSize(12);
+            doc.text('IMPLICADOS', 20, y);
+            doc.setFontSize(10);
+            y += 7;
+            
+            implicadosTemp.forEach((imp, i) => {
+                doc.text(`${i + 1}. ${imp.tipo}: ${imp.nombre} (DNI: ${imp.dni})`, 20, y);
+                y += 7;
+            });
+            
+            // Footer
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text('Documento generado electrónicamente', 105, 280, { align: 'center' });
+            doc.text(`Fecha: ${new Date().toLocaleString()}`, 105, 285, { align: 'center' });
+            
+            doc.save(`Atestado_${numAtestado}.pdf`);
+        }
+
+        // ============================================
+        // MAIN FUNCTIONS
+        // ============================================
         function filterAtestados() {
-            const text = document.getElementById('searchInput').value;
-            renderList(text);
+            renderList(document.getElementById('searchInput').value);
         }
 
         function createNewAtestado() {
             document.getElementById('currentId').value = '';
             document.getElementById('numAtestado').value = '';
+            document.getElementById('instructorCP').value = '';
+            document.getElementById('secretarioCP').value = '';
             document.getElementById('fechaSiniestro').value = new Date().toISOString().split('T')[0];
             document.getElementById('horaSiniestro').value = new Date().toTimeString().substring(0,5);
             document.getElementById('lugarSiniestro').value = '';
@@ -1585,7 +2263,9 @@
             setLocationMode('manual');
             
             diligenciasTemp = [];
+            implicadosTemp = [];
             renderDiligenciasTemp();
+            renderImplicados();
             updatePieChart();
             updateReferencia();
             
@@ -1593,20 +2273,16 @@
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
             window.scrollTo(0, 0);
-            showDebug('➕ Nuevo atestado creado');
         }
 
         function openDetail(id) {
             const atestado = atestados.find(a => a.id === id);
-            if(!atestado) {
-                showDebug('❌ No se encontró atestado: ' + id);
-                return;
-            }
-
-            showDebug('📂 Abriendo: #' + atestado.numAtestado);
+            if(!atestado) return;
 
             document.getElementById('currentId').value = atestado.id;
             document.getElementById('numAtestado').value = atestado.numAtestado;
+            document.getElementById('instructorCP').value = atestado.instructorCP || '';
+            document.getElementById('secretarioCP').value = atestado.secretarioCP || '';
             document.getElementById('fechaSiniestro').value = atestado.fecha;
             document.getElementById('horaSiniestro').value = atestado.hora || '09:00';
             updateReferencia();
@@ -1627,17 +2303,15 @@
                 document.getElementById('lugarSiniestro').value = atestado.lugar;
             }
             
-            document.getElementById('matriculas').value = atestado.matriculas;
-            
+            document.getElementById('matriculas').value = atestado.matriculas || '';
             diligenciasTemp = atestado.diligencias ? JSON.parse(JSON.stringify(atestado.diligencias)) : [];
-            showDebug('📋 Diligencias cargadas: ' + diligenciasTemp.length);
+            implicadosTemp = atestado.implicados ? JSON.parse(JSON.stringify(atestado.implicados)) : [];
             
             renderDiligenciasTemp();
+            renderImplicados();
             updatePieChart();
             
-            const hasDiligencias = diligenciasTemp.length > 0;
-            document.getElementById('deleteSection').style.display = hasDiligencias ? 'block' : 'none';
-            
+            document.getElementById('deleteSection').style.display = diligenciasTemp.length > 0 ? 'block' : 'none';
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
             window.scrollTo(0, 0);
@@ -1645,24 +2319,28 @@
 
         function goBack() {
             document.getElementById('detailView').style.display = 'none';
+            document.getElementById('statsView').style.display = 'none';
+            document.getElementById('mapView').style.display = 'none';
             document.getElementById('mainView').style.display = 'block';
             renderList(document.getElementById('searchInput').value);
         }
 
         async function saveAtestado() {
-            const id = document.getElementById('currentId').value;
             const numAtestado = document.getElementById('numAtestado').value.trim();
             const fecha = document.getElementById('fechaSiniestro').value;
             const hora = document.getElementById('horaSiniestro').value;
+            const instructor = document.getElementById('instructorCP').value.trim();
+            const secretario = document.getElementById('secretarioCP').value.trim();
             
-            if(!numAtestado || !fecha || !hora) {
-                alert('❌ Completa los campos obligatorios');
+            if(!numAtestado || !fecha || !hora || !instructor || !secretario) {
+                alert('❌ Completa todos los campos obligatorios');
                 return;
             }
             
+            const id = document.getElementById('currentId').value;
             const usoGeo = currentLocationMode === 'geo';
             const lugar = usoGeo ? 
-                (document.getElementById('geoFullAddress').value || `GPS`) : 
+                (document.getElementById('geoFullAddress').value || 'GPS') : 
                 document.getElementById('lugarSiniestro').value.trim();
             
             const newData = {
@@ -1670,17 +2348,20 @@
                 fecha,
                 hora,
                 lugar,
+                instructorCP: instructor,
+                secretarioCP: secretario,
                 matriculas: document.getElementById('matriculas').value.trim(),
                 usoGeo,
                 geoLat: document.getElementById('geoLat').value,
                 geoLon: document.getElementById('geoLon').value,
                 geoAddress: document.getElementById('geoFullAddress').value,
                 diligencias: diligenciasTemp,
+                implicados: implicadosTemp,
+                agentName: currentAgent ? currentAgent.name : '',
+                agentBadge: currentAgent ? currentAgent.badge : '',
                 organizacion: "Policía Local C.P. 0855 UVAC Palma",
                 fechaModificacion: new Date().toISOString()
             };
-
-            showDebug('💾 Guardando atestado #' + numAtestado);
 
             const savedId = await saveToCloud(newData, id);
             
@@ -1689,13 +2370,11 @@
                 atestados.push(newData);
             } else {
                 const index = atestados.findIndex(a => a.id === id);
-                if(index !== -1) {
-                    atestados[index] = { ...atestados[index], ...newData, id };
-                }
+                if(index !== -1) atestados[index] = { ...atestados[index], ...newData, id };
             }
 
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            alert(`✅ Atestado #${numAtestado} GUARDADO\n📋 ${diligenciasTemp.length} diligencia(s)\n✅ ${completed} realizada(s)\n\n${isOnline && firebaseInitialized ? '📡 Sincronizado en la nube' : '⏳ Solo local'}`);
+            alert(`✅ Atestado #${numAtestado} GUARDADO\n📋 ${diligenciasTemp.length} diligencia(s)\n👥 ${implicadosTemp.length} implicado(s)\n✅ ${completed} realizada(s)`);
             goBack();
         }
 
@@ -1705,12 +2384,11 @@
             
             if(!atestado) return;
             
-            if(confirm(`⚠️ ¿Eliminar el Atestado #${atestado.numAtestado}?\n\nEsta acción NO se puede deshacer.`)) {
+            if(confirm(`⚠️ ¿Eliminar Atestado #${atestado.numAtestado}?`)) {
                 await deleteFromCloud(id);
                 atestados = atestados.filter(a => a.id !== id);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
-                
-                alert('🗑️ Atestado eliminado');
+                alert('🗑️ Eliminado');
                 goBack();
             }
         }
@@ -1722,33 +2400,25 @@
             }
             
             let csv = "text/csv;charset=utf-8,";
-            csv += "Organizacion,Numero,Fecha,Hora,Lugar,Matriculas,TotalDiligencias,Completadas,Pendientes,DetallesDiligencias\n";
+            csv += "Organizacion,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Matriculas,Implicados,Diligencias\n";
             
             atestados.forEach(a => {
-                const total = (a.diligencias || []).length;
-                const completadas = (a.diligencias || []).filter(d => d.completed).length;
-                const pendientes = total - completadas;
+                const implicados = (a.implicados || []).map(i => `${i.tipo}:${i.nombre}`).join('; ');
+                const diligencias = (a.diligencias || []).map(d => `${d.tipo}:${d.completed ? 'HECHO' : 'PENDIENTE'}`).join('; ');
                 
-                const dilDetails = (a.diligencias || []).map(d => 
-                    `${d.tipo} | ${formatDate(d.fecha)} ${d.hora || ''} | ${d.completed ? 'REALIZADA' : 'PENDIENTE'} | ${d.fotos ? d.fotos.length : 0} fotos`
-                ).join(' || ');
-                
-                csv += `"${a.organizacion}","${a.numAtestado}","${a.fecha}","${a.hora || ''}","${a.lugar}","${a.matriculas}",${total},${completadas},${pendientes},"${dilDetails}"\n`;
+                csv += `"${a.organizacion}","${a.numAtestado}","${a.fecha}","${a.hora}","${a.lugar}","${a.instructorCP}","${a.secretarioCP}","${a.matriculas}","${implicados}","${diligencias}"\n`;
             });
 
             const link = document.createElement("a");
             link.href = encodeURI(csv);
-            link.download = `Atestados_Policia_Palma_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Atestados_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
-            alert(`✅ Exportado ${atestados.length} atestado(s)`);
         }
 
         function formatDate(dateString) {
             if(!dateString) return '';
             return new Date(dateString).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
+                day: '2-digit', month: '2-digit', year: 'numeric'
             });
         }
 
@@ -1756,34 +2426,24 @@
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
-            showDebug('🚀 Iniciando aplicación...');
-            
-            const cached = localStorage.getItem('atestadosDB');
-            if(cached) {
-                atestados = JSON.parse(cached);
-                showDebug('📦 Cargados ' + atestados.length + ' atestados de localStorage');
+            const savedTheme = localStorage.getItem('theme');
+            if(savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
             }
+            
+            checkLogin();
             
             window.addEventListener('online', () => { 
                 isOnline = true; 
-                showDebug('🌐 Conexión restaurada');
                 updateSyncStatus('online');
             });
             window.addEventListener('offline', () => { 
                 isOnline = false; 
-                showDebug('📡 Sin conexión');
                 updateSyncStatus('offline');
             });
             
-            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
-            renderList();
-            
             const fechaInput = document.getElementById('fechaDiligencia');
-            if(fechaInput) {
-                fechaInput.valueAsDate = new Date();
-            }
-            
-            showDebug('✅ Aplicación lista');
+            if(fechaInput) fechaInput.valueAsDate = new Date();
         });
     </script>
 </body>
