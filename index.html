@@ -1007,23 +1007,27 @@
         // FIREBASE CONFIGURATION
         // ============================================
         function initializeFirebase() {
-            // // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    const firebaseConfig = {
+        apiKey: "AIzaSyC9fjYSmXfzdtDtrs-B0JfS9iotqDUPJY",
+        authDomain: "atestados-policia-palma.firebaseapp.com",
+        projectId: "atestados-policia-palma",
+        storageBucket: "atestados-policia-palma.firebasestorage.app",
+        messagingSenderId: "680050053111",
+        appId: "1:680050053111:web:4101ea8b813ac07765e8f2"
+        // measurementId no es necesario para Firestore
+    };
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC9fjJYSmXfzdtDtrs-B0JfS9iotqDUPJY",
-  authDomain: "atestados-policia-palma.firebaseapp.com",
-  projectId: "atestados-policia-palma",
-  storageBucket: "atestados-policia-palma.firebasestorage.app",
-  messagingSenderId: "680050053111",
-  appId: "1:680050053111:web:4101ea8b813ac07765e8f2",
-  measurementId: "G-DCH9LM9HEG"
-};
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        firebaseInitialized = true;
+        updateSyncStatus('online');
+        console.log('✅ Firebase inicializado correctamente');
+    } catch(error) {
+        console.error('❌ Error:', error);
+        updateSyncStatus('offline');
+    }
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -1543,7 +1547,7 @@ const analytics = getAnalytics(app);            const firebaseConfig = {
             document.getElementById('geoFullAddress').value = '';
             document.getElementById('geoInfo').classList.remove('active');
             setLocationMode('manual');
-            
+
             diligenciasTemp = [];
             renderDiligenciasTemp();
             updatePieChart();
@@ -1758,4 +1762,3 @@ const analytics = getAnalytics(app);            const firebaseConfig = {
     </script>
 </body>
 </html>
-
