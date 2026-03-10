@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
-    <!-- PDF Generation - jsPDF -->
+    <!-- PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- QR Code -->
@@ -961,6 +961,16 @@
             font-weight: 600;
         }
 
+        .firebase-debug {
+            background: #1a237e;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
         @media (min-width: 768px) {
             .container { max-width: 1200px; margin: 0 auto; }
             .list-container { height: calc(100vh - 200px); overflow-y: auto; }
@@ -1257,10 +1267,13 @@
                     <div id="debugInfo" class="debug-info"></div>
                 </div>
                 <div class="form-section">
+                    <div class="firebase-debug" id="firebaseDebug">
+                        🔍 Estado Firebase: Cargando...
+                    </div>
                     <div class="button-group">
                         <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar</button>
-                        <button type="button" class="btn" onclick="testPDF()">📄 Probar PDF</button>
-                        <button type="button" class="btn" onclick="testQR()">📱 Probar QR</button>
+                        <button type="button" class="btn" onclick="generatePDF()">📄 PDF</button>
+                        <button type="button" class="btn" onclick="showQR()">📱 QR</button>
                         <button type="button" class="btn" onclick="exportToExcel()">📊 Excel</button>
                     </div>
                 </div>
@@ -1327,17 +1340,28 @@
             if(window.jspdf && window.jspdf.jsPDF) {
                 jsPDF = window.jspdf.jsPDF;
                 console.log('✅ jsPDF cargado correctamente');
+                updateFirebaseDebug('✅ jsPDF: Cargado');
             } else {
                 console.error('❌ jsPDF NO cargado');
+                updateFirebaseDebug('❌ jsPDF: Error');
             }
             
             // Verificar QRCode
             if(window.QRCode) {
                 console.log('✅ QRCode cargado correctamente');
+                updateFirebaseDebug('✅ QRCode: Cargado');
             } else {
                 console.error('❌ QRCode NO cargado');
+                updateFirebaseDebug('❌ QRCode: Error');
             }
         });
+
+        function updateFirebaseDebug(msg) {
+            const debug = document.getElementById('firebaseDebug');
+            if(debug) {
+                debug.textContent = msg;
+            }
+        }
 
         // ============================================
         // INICIALIZAR FIREBASE
@@ -1347,6 +1371,7 @@
             db = firebase.firestore();
             firebaseInitialized = true;
             console.log('✅ Firebase inicializado correctamente');
+            updateFirebaseDebug('✅ Firebase: Conectado');
             
             db.collection('atestados').onSnapshot(
                 (snapshot) => {
@@ -1359,65 +1384,22 @@
                         renderList();
                     }
                     console.log('📡 Sincronizados ' + atestados.length + ' atestados');
+                    updateFirebaseDebug('✅ Firebase: ' + atestados.length + ' atestados');
+                    updateSyncStatus('online');
                 },
                 (error) => {
                     console.error('❌ Error escuchando cambios:', error);
-                    updateSyncStatus('offline');
+                    updateFirebaseDebug('❌ Firebase Error: ' + error.message);
+                    updateSyncStatus('error');
                 }
             );
         } catch(error) {
             console.error('❌ Error Firebase:', error);
-            updateSyncStatus('offline');
+            updateFirebaseDebug('❌ Firebase Error: ' + error.message);
+            updateSyncStatus('error');
             const cached = localStorage.getItem('atestadosDB');
             if(cached) {
                 atestados = JSON.parse(cached);
-            }
-        }
-
-        // ============================================
-        // TEST FUNCTIONS - PDF Y QR
-        // ============================================
-        function testPDF() {
-            console.log('🔍 Probando PDF...');
-            alert('🔍 Probando PDF...\n\nRevisa la consola (F12) para ver errores');
-            
-            if(!jsPDF) {
-                alert('❌ Error: jsPDF no está cargado\n\nVerifica tu conexión a internet');
-                return;
-            }
-            
-            try {
-                const doc = new jsPDF();
-                doc.text('TEST PDF - Policía Local Palma', 20, 20);
-                doc.save('test.pdf');
-                alert('✅ PDF de prueba generado correctamente');
-            } catch(error) {
-                console.error('❌ Error PDF:', error);
-                alert('❌ Error al generar PDF:\n' + error.message);
-            }
-        }
-
-        function testQR() {
-            console.log('🔍 Probando QR...');
-            alert('🔍 Probando QR...\n\nRevisa la consola (F12) para ver errores');
-            
-            if(!window.QRCode) {
-                alert('❌ Error: QRCode no está cargado\n\nVerifica tu conexión a internet');
-                return;
-            }
-            
-            try {
-                document.getElementById('qrContainer').innerHTML = '';
-                new QRCode(document.getElementById('qrContainer'), {
-                    text: 'TEST QR Code',
-                    width: 200,
-                    height: 200
-                });
-                document.getElementById('qrModal').classList.add('active');
-                alert('✅ QR de prueba generado correctamente');
-            } catch(error) {
-                console.error('❌ Error QR:', error);
-                alert('❌ Error al generar QR:\n' + error.message);
             }
         }
 
@@ -2207,12 +2189,12 @@
         }
 
         // ============================================
-        // QR CODE - CORREGIDO
+        // QR CODE
         // ============================================
         function showQR() {
             const numAtestado = document.getElementById('numAtestado').value;
             if(!numAtestado) {
-                alert('❌ Guarda el atestado primero');
+                alert('❌ Escribe un número de atestado');
                 return;
             }
             
@@ -2250,7 +2232,7 @@
         }
 
         // ============================================
-        // PDF GENERATION - CORREGIDO
+        // PDF GENERATION - CORREGIDO PARA LEER DATOS
         // ============================================
         function generatePDF() {
             console.log('🔍 Generando PDF...');
@@ -2262,15 +2244,24 @@
             }
             
             try {
-                const doc = new jsPDF('p', 'mm', 'a4');
-                
+                // LEER DATOS DIRECTAMENTE DE LOS CAMPOS DEL FORMULARIO
                 const numAtestado = document.getElementById('numAtestado').value || 'S/N';
-                const fecha = document.getElementById('fechaSiniestro').value;
-                const hora = document.getElementById('horaSiniestro').value;
-                const lugar = document.getElementById('lugarSiniestro').value;
-                const instructor = document.getElementById('instructorCP').value;
-                const secretario = document.getElementById('secretarioCP').value;
-                const matriculas = document.getElementById('matriculas').value;
+                const fecha = document.getElementById('fechaSiniestro').value || 'Sin fecha';
+                const hora = document.getElementById('horaSiniestro').value || 'Sin hora';
+                const lugar = document.getElementById('lugarSiniestro').value || 'Sin ubicación';
+                const instructor = document.getElementById('instructorCP').value || 'Sin instructor';
+                const secretario = document.getElementById('secretarioCP').value || 'Sin secretario';
+                const matriculas = document.getElementById('matriculas').value || 'Sin matrículas';
+                
+                console.log('📋 Datos del PDF:');
+                console.log('  Número:', numAtestado);
+                console.log('  Fecha:', fecha);
+                console.log('  Hora:', hora);
+                console.log('  Lugar:', lugar);
+                console.log('  Instructor:', instructor);
+                console.log('  Secretario:', secretario);
+                
+                const doc = new jsPDF('p', 'mm', 'a4');
                 
                 // Header
                 doc.setFillColor(26, 35, 126);
@@ -2285,34 +2276,37 @@
                 doc.setFontSize(11);
                 doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, { align: 'center' });
                 
-                // Info
+                // Info box
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(10);
                 doc.setDrawColor(200, 200, 200);
                 doc.setFillColor(245, 245, 245);
-                doc.rect(15, 40, 180, 35, 'FD');
+                doc.rect(15, 40, 180, 40, 'FD');
+                
                 doc.setFont('helvetica', 'bold');
                 doc.text('Nº ATESTADO: ' + numAtestado, 20, 48);
                 doc.text('FECHA: ' + fecha, 120, 48);
+                
                 doc.setFont('helvetica', 'normal');
                 doc.text('HORA: ' + hora, 20, 55);
                 doc.text('LUGAR: ' + lugar, 20, 62);
+                
                 doc.setFont('helvetica', 'bold');
-                doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 69);
-                doc.text('SECRETARIO C.P.: ' + secretario, 120, 69);
+                doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 70);
+                doc.text('SECRETARIO C.P.: ' + secretario, 120, 70);
                 
                 // Vehicles
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
-                doc.text('VEHÍCULOS IMPLICADOS', 15, 82);
+                doc.text('VEHÍCULOS IMPLICADOS', 15, 88);
                 doc.setDrawColor(26, 35, 126);
-                doc.line(15, 84, 195, 84);
+                doc.line(15, 90, 195, 90);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
-                doc.text(matriculas || 'Sin matrículas', 15, 90);
+                doc.text(matriculas, 15, 96);
                 
                 // Diligencias
-                let yPos = 100;
+                let yPos = 105;
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.text('DILIGENCIAS', 15, yPos);
@@ -2330,8 +2324,22 @@
                         yPos += 6;
                     });
                 } else {
-                    doc.text('Sin diligencias', 15, yPos);
+                    doc.text('Sin diligencias registradas', 15, yPos);
                     yPos += 6;
+                }
+                
+                // Implicados
+                yPos += 5;
+                if(implicadosTemp && implicadosTemp.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('IMPLICADOS (' + implicadosTemp.length + ')', 15, yPos);
+                    yPos += 6;
+                    doc.setFont('helvetica', 'normal');
+                    implicadosTemp.forEach((imp, i) => {
+                        if(yPos > 270) { doc.addPage(); yPos = 20; }
+                        doc.text((i + 1) + '. ' + imp.nombre + ' (' + imp.tipo + ') - DNI: ' + imp.dni, 15, yPos);
+                        yPos += 5;
+                    });
                 }
                 
                 // Footer
@@ -2340,11 +2348,11 @@
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(8);
                 doc.text('Policía Local de Palma - C.P. 0855', 105, 287, { align: 'center' });
-                doc.text('UVAC', 105, 292, { align: 'center' });
+                doc.text('UVAC - Unidad de Valoración y Atención Continuada', 105, 292, { align: 'center' });
                 
-                doc.save('Atestado_' + numAtestado + '.pdf');
+                doc.save('Atestado_' + numAtestado + '_' + fecha + '.pdf');
                 console.log('✅ PDF generado correctamente');
-                alert('✅ PDF generado correctamente');
+                alert('✅ PDF generado con los datos del formulario');
             } catch(error) {
                 console.error('❌ Error PDF:', error);
                 alert('❌ Error al generar PDF:\n' + error.message);
