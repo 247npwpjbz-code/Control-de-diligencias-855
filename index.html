@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
-    <!-- PDF Generation -->
+    <!-- PDF Generation - jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- QR Code -->
@@ -1259,8 +1259,8 @@
                 <div class="form-section">
                     <div class="button-group">
                         <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar</button>
-                        <button type="button" class="btn" onclick="generatePDF()">📄 PDF</button>
-                        <button type="button" class="btn" onclick="showQR()">📱 QR</button>
+                        <button type="button" class="btn" onclick="testPDF()">📄 Probar PDF</button>
+                        <button type="button" class="btn" onclick="testQR()">📱 Probar QR</button>
                         <button type="button" class="btn" onclick="exportToExcel()">📊 Excel</button>
                     </div>
                 </div>
@@ -1303,6 +1303,7 @@
         let firebaseInitialized = false;
         let currentAgent = null;
         let map = null;
+        let jsPDF = null;
 
         // ============================================
         // FIREBASE CONFIGURATION
@@ -1317,6 +1318,28 @@
         };
 
         // ============================================
+        // INICIALIZAR LIBRERÍAS
+        // ============================================
+        window.addEventListener('load', function() {
+            console.log('🔍 Verificando librerías...');
+            
+            // Verificar jsPDF
+            if(window.jspdf && window.jspdf.jsPDF) {
+                jsPDF = window.jspdf.jsPDF;
+                console.log('✅ jsPDF cargado correctamente');
+            } else {
+                console.error('❌ jsPDF NO cargado');
+            }
+            
+            // Verificar QRCode
+            if(window.QRCode) {
+                console.log('✅ QRCode cargado correctamente');
+            } else {
+                console.error('❌ QRCode NO cargado');
+            }
+        });
+
+        // ============================================
         // INICIALIZAR FIREBASE
         // ============================================
         try {
@@ -1325,7 +1348,6 @@
             firebaseInitialized = true;
             console.log('✅ Firebase inicializado correctamente');
             
-            // Escuchar cambios en tiempo real
             db.collection('atestados').onSnapshot(
                 (snapshot) => {
                     atestados = [];
@@ -1349,6 +1371,53 @@
             const cached = localStorage.getItem('atestadosDB');
             if(cached) {
                 atestados = JSON.parse(cached);
+            }
+        }
+
+        // ============================================
+        // TEST FUNCTIONS - PDF Y QR
+        // ============================================
+        function testPDF() {
+            console.log('🔍 Probando PDF...');
+            alert('🔍 Probando PDF...\n\nRevisa la consola (F12) para ver errores');
+            
+            if(!jsPDF) {
+                alert('❌ Error: jsPDF no está cargado\n\nVerifica tu conexión a internet');
+                return;
+            }
+            
+            try {
+                const doc = new jsPDF();
+                doc.text('TEST PDF - Policía Local Palma', 20, 20);
+                doc.save('test.pdf');
+                alert('✅ PDF de prueba generado correctamente');
+            } catch(error) {
+                console.error('❌ Error PDF:', error);
+                alert('❌ Error al generar PDF:\n' + error.message);
+            }
+        }
+
+        function testQR() {
+            console.log('🔍 Probando QR...');
+            alert('🔍 Probando QR...\n\nRevisa la consola (F12) para ver errores');
+            
+            if(!window.QRCode) {
+                alert('❌ Error: QRCode no está cargado\n\nVerifica tu conexión a internet');
+                return;
+            }
+            
+            try {
+                document.getElementById('qrContainer').innerHTML = '';
+                new QRCode(document.getElementById('qrContainer'), {
+                    text: 'TEST QR Code',
+                    width: 200,
+                    height: 200
+                });
+                document.getElementById('qrModal').classList.add('active');
+                alert('✅ QR de prueba generado correctamente');
+            } catch(error) {
+                console.error('❌ Error QR:', error);
+                alert('❌ Error al generar QR:\n' + error.message);
             }
         }
 
@@ -1841,8 +1910,6 @@
             if(!dil) return;
             
             const atestadoNum = document.getElementById('numAtestado').value || 'XXXX';
-            const title = `Atestado ${atestadoNum} - ${dil.tipo}`;
-            const description = `Diligencia del Atestado #${atestadoNum}\nTipo: ${dil.tipo}\n\nPolicía Local C.P. 0855 UVAC Palma`;
             
             const eventDate = new Date(dil.fecha);
             if(dil.hora) {
@@ -1856,36 +1923,27 @@
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
                 'PRODID:-//Policia Local Palma//Atestados//ES',
-                'CALSCALE:GREGORIAN',
-                'METHOD:PUBLISH',
                 'BEGIN:VEVENT',
-                `UID:${diligenciaId}@atestados-policia-palma`,
-                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-                `DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-                `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-                `SUMMARY:${title}`,
-                `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                'UID:' + diligenciaId + '@atestados',
+                'DTSTART:' + eventDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+                'SUMMARY:Atestado ' + atestadoNum + ' - ' + dil.tipo,
                 'LOCATION:UVAC Palma',
                 'BEGIN:VALARM',
                 'TRIGGER:-PT15M',
                 'ACTION:DISPLAY',
-                'DESCRIPTION:Recordatorio de diligencia',
+                'DESCRIPTION:Recordatorio',
                 'END:VALARM',
                 'END:VEVENT',
                 'END:VCALENDAR'
             ].join('\r\n');
             
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Recordatorio_${atestadoNum}_${dil.tipo.replace(/\s+/g, '_')}.ics`;
-            document.body.appendChild(link);
+            link.download = 'Recordatorio_' + atestadoNum + '.ics';
             link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            alert(`✅ Recordatorio generado\n📅 ${formatDate(dil.fecha)} ${dil.hora}`);
+            alert('✅ Recordatorio generado');
         }
 
         function showFoto(fotoSrc) {
@@ -1935,7 +1993,7 @@
                     document.getElementById('geoLon').value = lon;
                     document.getElementById('geoInfo').classList.add('active');
                     
-                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon)
                         .then(response => response.json())
                         .then(data => {
                             const address = data.display_name || 'Dirección no disponible';
@@ -1943,8 +2001,8 @@
                             document.getElementById('geoFullAddress').value = address;
                         })
                         .catch(() => {
-                            document.getElementById('geoAddress').textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                            document.getElementById('geoFullAddress').value = `Lat: ${lat}, Lon: ${lon}`;
+                            document.getElementById('geoAddress').textContent = 'Lat: ' + lat.toFixed(4) + ', Lon: ' + lon.toFixed(4);
+                            document.getElementById('geoFullAddress').value = 'Lat: ' + lat + ', Lon: ' + lon;
                         });
                     
                     btn.innerHTML = '<span>✅</span> Ubicación Obtenida';
@@ -2083,7 +2141,6 @@
             document.getElementById('statPending').textContent = pending;
             document.getElementById('statAgents').textContent = agents;
             
-            // Week chart
             const weeks = [0, 0, 0, 0];
             atestados.forEach(a => {
                 const d = new Date(a.fecha);
@@ -2099,17 +2156,13 @@
                 </div>
             `).join('');
             
-            // Hour chart
             const hours = {};
             atestados.forEach(a => {
                 const h = a.hora ? parseInt(a.hora.split(':')[0]) : 12;
                 hours[h] = (hours[h] || 0) + 1;
             });
             
-            const peakHours = Object.entries(hours)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
-            
+            const peakHours = Object.entries(hours).sort((a, b) => b[1] - a[1]).slice(0, 5);
             const maxHour = Math.max(...peakHours.map(h => h[1]), 1);
             document.getElementById('hourChart').innerHTML = peakHours.map(([h, v]) => `
                 <div class="bar" style="height: ${(v / maxHour) * 150}px;">
@@ -2118,17 +2171,13 @@
                 </div>
             `).join('');
             
-            // Top locations
             const locations = {};
             atestados.forEach(a => {
                 const loc = a.lugar || 'Sin ubicación';
                 locations[loc] = (locations[loc] || 0) + 1;
             });
             
-            const topLocations = Object.entries(locations)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
-            
+            const topLocations = Object.entries(locations).sort((a, b) => b[1] - a[1]).slice(0, 5);
             document.getElementById('topLocations').innerHTML = topLocations.map(([loc, count], i) => `
                 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
                     <span>${i + 1}. ${loc.substring(0, 40)}${loc.length > 40 ? '...' : ''}</span>
@@ -2146,28 +2195,19 @@
             window.scrollTo(0, 0);
             
             setTimeout(() => {
-                if(map) {
-                    map.remove();
-                }
-                
+                if(map) map.remove();
                 map = L.map('map').setView([39.5696, 2.6502], 13);
-                
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(map);
-                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
                 atestados.forEach(a => {
                     if(a.geoLat && a.geoLon) {
-                        L.marker([parseFloat(a.geoLat), parseFloat(a.geoLon)])
-                            .addTo(map)
-                            .bindPopup(`<strong>#${a.numAtestado}</strong><br>${a.fecha}<br>${a.lugar}`);
+                        L.marker([parseFloat(a.geoLat), parseFloat(a.geoLon)]).addTo(map).bindPopup('<strong>#' + a.numAtestado + '</strong><br>' + a.fecha + '<br>' + a.lugar);
                     }
                 });
             }, 100);
         }
 
         // ============================================
-        // QR CODE
+        // QR CODE - CORREGIDO
         // ============================================
         function showQR() {
             const numAtestado = document.getElementById('numAtestado').value;
@@ -2176,14 +2216,33 @@
                 return;
             }
             
-            document.getElementById('qrContainer').innerHTML = '';
-            new QRCode(document.getElementById('qrContainer'), {
-                text: `Atestado #${numAtestado}\nPolicía Local C.P. 0855\n${new Date().toLocaleDateString()}`,
-                width: 200,
-                height: 200
-            });
+            console.log('🔍 Generando QR...');
+            console.log('QRCode disponible:', window.QRCode ? 'SÍ' : 'NO');
             
-            document.getElementById('qrModal').classList.add('active');
+            if(!window.QRCode) {
+                alert('❌ Error: Librería QR no cargada\n\nVerifica tu conexión a internet');
+                return;
+            }
+            
+            try {
+                document.getElementById('qrContainer').innerHTML = '';
+                const qrData = 'Atestado #' + numAtestado + '\nPolicía Local C.P. 0855\n' + new Date().toLocaleDateString();
+                
+                new QRCode(document.getElementById('qrContainer'), {
+                    text: qrData,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                document.getElementById('qrModal').classList.add('active');
+                console.log('✅ QR generado correctamente');
+            } catch(error) {
+                console.error('❌ Error QR:', error);
+                alert('❌ Error al generar QR:\n' + error.message);
+            }
         }
 
         function closeQR() {
@@ -2191,185 +2250,111 @@
         }
 
         // ============================================
-        // PDF GENERATION - COMPLETE VERSION
+        // PDF GENERATION - CORREGIDO
         // ============================================
         function generatePDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
+            console.log('🔍 Generando PDF...');
+            console.log('jsPDF disponible:', jsPDF ? 'SÍ' : 'NO');
             
-            const numAtestado = document.getElementById('numAtestado').value || 'S/N';
-            const fecha = document.getElementById('fechaSiniestro').value;
-            const hora = document.getElementById('horaSiniestro').value;
-            const lugar = document.getElementById('lugarSiniestro').value;
-            const instructor = document.getElementById('instructorCP').value;
-            const secretario = document.getElementById('secretarioCP').value;
-            const matriculas = document.getElementById('matriculas').value;
-            const geoLat = document.getElementById('geoLat').value;
-            const geoLon = document.getElementById('geoLon').value;
-            
-            // Header
-            doc.setFillColor(26, 35, 126);
-            doc.rect(0, 0, 210, 35, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.text('POLICÍA LOCAL', 105, 15, { align: 'center' });
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'normal');
-            doc.text('C.P. 0855 - UVAC PALMA', 105, 23, { align: 'center' });
-            doc.setFontSize(11);
-            doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, { align: 'center' });
-            
-            // Info box
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(10);
-            doc.setDrawColor(200, 200, 200);
-            doc.setFillColor(245, 245, 245);
-            doc.rect(15, 40, 180, 35, 'FD');
-            doc.setFont('helvetica', 'bold');
-            doc.text('Nº ATESTADO: ' + numAtestado, 20, 48);
-            doc.text('FECHA: ' + fecha, 120, 48);
-            doc.setFont('helvetica', 'normal');
-            doc.text('HORA: ' + hora, 20, 55);
-            doc.text('LUGAR: ' + lugar, 20, 62);
-            if(geoLat && geoLon) {
-                doc.text('GPS: ' + parseFloat(geoLat).toFixed(6) + ', ' + parseFloat(geoLon).toFixed(6), 120, 55);
+            if(!jsPDF) {
+                alert('❌ Error: Librería PDF no cargada\n\nVerifica tu conexión a internet');
+                return;
             }
-            doc.setFont('helvetica', 'bold');
-            doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 69);
-            doc.text('SECRETARIO C.P.: ' + secretario, 120, 69);
             
-            // Vehicles
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('VEHÍCULOS IMPLICADOS', 15, 82);
-            doc.setDrawColor(26, 35, 126);
-            doc.line(15, 84, 195, 84);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text(matriculas || 'Sin matrículas registradas', 15, 90);
-            
-            // Implicados
-            let yPos = 100;
-            if(implicadosTemp && implicadosTemp.length > 0) {
+            try {
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                const numAtestado = document.getElementById('numAtestado').value || 'S/N';
+                const fecha = document.getElementById('fechaSiniestro').value;
+                const hora = document.getElementById('horaSiniestro').value;
+                const lugar = document.getElementById('lugarSiniestro').value;
+                const instructor = document.getElementById('instructorCP').value;
+                const secretario = document.getElementById('secretarioCP').value;
+                const matriculas = document.getElementById('matriculas').value;
+                
+                // Header
+                doc.setFillColor(26, 35, 126);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.setFont('helvetica', 'bold');
+                doc.text('POLICÍA LOCAL', 105, 15, { align: 'center' });
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'normal');
+                doc.text('C.P. 0855 - UVAC PALMA', 105, 23, { align: 'center' });
+                doc.setFontSize(11);
+                doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, { align: 'center' });
+                
+                // Info
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(10);
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(245, 245, 245);
+                doc.rect(15, 40, 180, 35, 'FD');
+                doc.setFont('helvetica', 'bold');
+                doc.text('Nº ATESTADO: ' + numAtestado, 20, 48);
+                doc.text('FECHA: ' + fecha, 120, 48);
+                doc.setFont('helvetica', 'normal');
+                doc.text('HORA: ' + hora, 20, 55);
+                doc.text('LUGAR: ' + lugar, 20, 62);
+                doc.setFont('helvetica', 'bold');
+                doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 69);
+                doc.text('SECRETARIO C.P.: ' + secretario, 120, 69);
+                
+                // Vehicles
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
-                doc.text('IMPLICADOS', 15, yPos);
+                doc.text('VEHÍCULOS IMPLICADOS', 15, 82);
+                doc.setDrawColor(26, 35, 126);
+                doc.line(15, 84, 195, 84);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.text(matriculas || 'Sin matrículas', 15, 90);
+                
+                // Diligencias
+                let yPos = 100;
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text('DILIGENCIAS', 15, yPos);
                 doc.setDrawColor(26, 35, 126);
                 doc.line(15, yPos + 2, 195, yPos + 2);
                 yPos += 10;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
                 
-                implicadosTemp.forEach((imp, i) => {
-                    if(yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    doc.setFont('helvetica', 'bold');
-                    doc.text((i + 1) + '. ' + (imp.nombre || 'Sin nombre') + ' (' + imp.tipo + ')', 15, yPos);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text('DNI/NIE: ' + (imp.dni || 'N/A'), 15, yPos + 5);
-                    doc.text('Teléfono: ' + (imp.telefono || 'N/A'), 100, yPos + 5);
-                    doc.text('Vehículo: ' + (imp.vehiculo || 'N/A'), 15, yPos + 10);
-                    doc.text('Aseguradora: ' + (imp.aseguradora || 'N/A'), 100, yPos + 10);
-                    doc.text('Póliza: ' + (imp.seguro || 'N/A'), 15, yPos + 15);
-                    
-                    if(imp.declaraciones) {
-                        doc.setFont('helvetica', 'italic');
-                        const splitDecl = doc.splitTextToSize('"' + imp.declaraciones + '"', 180);
-                        doc.text(splitDecl, 15, yPos + 22);
-                        yPos += 22 + (splitDecl.length * 5);
-                    } else {
-                        yPos += 20;
-                    }
-                });
-            }
-            
-            // Diligencias
-            yPos += 5;
-            if(yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('DILIGENCIAS PRACTICADAS', 15, yPos);
-            doc.setDrawColor(26, 35, 126);
-            doc.line(15, yPos + 2, 195, yPos + 2);
-            yPos += 10;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            
-            if(diligenciasTemp && diligenciasTemp.length > 0) {
-                diligenciasTemp.forEach((d, i) => {
-                    if(yPos > 270) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    const status = d.completed ? '☑' : '☐';
-                    const completedDate = d.completed && d.completedDate ? 
-                        ' (' + new Date(d.completedDate).toLocaleDateString() + ')' : '';
-                    
-                    doc.text(status + ' ' + (i + 1) + '. ' + d.tipo + ' - ' + d.fecha + completedDate, 15, yPos);
+                if(diligenciasTemp && diligenciasTemp.length > 0) {
+                    diligenciasTemp.forEach((d, i) => {
+                        if(yPos > 270) { doc.addPage(); yPos = 20; }
+                        const status = d.completed ? '☑' : '☐';
+                        doc.text(status + ' ' + (i + 1) + '. ' + d.tipo + ' - ' + d.fecha, 15, yPos);
+                        yPos += 6;
+                    });
+                } else {
+                    doc.text('Sin diligencias', 15, yPos);
                     yPos += 6;
-                });
-            } else {
-                doc.text('No hay diligencias registradas', 15, yPos);
-                yPos += 6;
+                }
+                
+                // Footer
+                doc.setFillColor(26, 35, 126);
+                doc.rect(0, 280, 210, 15, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(8);
+                doc.text('Policía Local de Palma - C.P. 0855', 105, 287, { align: 'center' });
+                doc.text('UVAC', 105, 292, { align: 'center' });
+                
+                doc.save('Atestado_' + numAtestado + '.pdf');
+                console.log('✅ PDF generado correctamente');
+                alert('✅ PDF generado correctamente');
+            } catch(error) {
+                console.error('❌ Error PDF:', error);
+                alert('❌ Error al generar PDF:\n' + error.message);
             }
-            
-            // Photos count
-            yPos += 5;
-            const totalFotos = diligenciasTemp.reduce((acc, d) => acc + (d.fotos ? d.fotos.length : 0), 0);
-            doc.setFont('helvetica', 'bold');
-            doc.text('FOTOGRAFÍAS ADJUNTAS: ' + totalFotos, 15, yPos);
-            
-            // QR Code
-            yPos += 10;
-            if(yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            
-            const qrData = 'Atestado #' + numAtestado + '\nPolicía Local C.P. 0855\n' + fecha + ' ' + hora + '\n' + lugar;
-            const canvas = document.createElement('canvas');
-            QRCode.toCanvas(canvas, qrData, { width: 80 }, function(error) {
-                if(error) console.error(error);
-                const qrImg = canvas.toDataURL('image/png');
-                doc.addImage(qrImg, 'PNG', 140, yPos - 5, 40, 40);
-            });
-            
-            // Signatures
-            yPos = 240;
-            doc.setDrawColor(0, 0, 0);
-            doc.line(20, yPos, 90, yPos);
-            doc.line(120, yPos, 190, yPos);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.text('Firma del Instructor', 55, yPos + 5);
-            doc.text('Firma del Secretario', 155, yPos + 5);
-            
-            // Footer
-            doc.setFillColor(26, 35, 126);
-            doc.rect(0, 280, 210, 15, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(8);
-            doc.text('Policía Local de Palma - C.P. 0855', 105, 287, { align: 'center' });
-            doc.text('UVAC - Unidad de Valoración y Atención Continuada', 105, 292, { align: 'center' });
-            const pageCount = doc.internal.getNumberOfPages();
-            doc.text('Página 1 de ' + pageCount, 105, 297, { align: 'center' });
-            
-            doc.save('Atestado_' + numAtestado + '_' + fecha + '.pdf');
         }
 
         // ============================================
         // MAIN FUNCTIONS
         // ============================================
-        function filterAtestados() {
-            renderList(document.getElementById('searchInput').value);
-        }
+        function filterAtestados() { renderList(document.getElementById('searchInput').value); }
 
         function createNewAtestado() {
             document.getElementById('currentId').value = '';
@@ -2385,14 +2370,12 @@
             document.getElementById('geoFullAddress').value = '';
             document.getElementById('geoInfo').classList.remove('active');
             setLocationMode('manual');
-            
             diligenciasTemp = [];
             implicadosTemp = [];
             renderDiligenciasTemp();
             renderImplicados();
             updatePieChart();
             updateReferencia();
-            
             document.getElementById('deleteSection').style.display = 'none';
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
@@ -2401,46 +2384,37 @@
         }
 
         function openDetail(id) {
-            const atestado = atestados.find(a => a.id === id);
-            if(!atestado) {
-                showDebug('❌ No se encontró: ' + id);
-                return;
-            }
-
-            showDebug('📂 Abriendo: #' + atestado.numAtestado);
-
-            document.getElementById('currentId').value = atestado.id;
-            document.getElementById('numAtestado').value = atestado.numAtestado;
-            document.getElementById('instructorCP').value = atestado.instructorCP || '';
-            document.getElementById('secretarioCP').value = atestado.secretarioCP || '';
-            document.getElementById('fechaSiniestro').value = atestado.fecha;
-            document.getElementById('horaSiniestro').value = atestado.hora || '09:00';
+            const a = atestados.find(x => x.id === id);
+            if(!a) { showDebug('❌ No encontrado: ' + id); return; }
+            showDebug('📂 Abriendo: #' + a.numAtestado);
+            document.getElementById('currentId').value = a.id;
+            document.getElementById('numAtestado').value = a.numAtestado;
+            document.getElementById('instructorCP').value = a.instructorCP || '';
+            document.getElementById('secretarioCP').value = a.secretarioCP || '';
+            document.getElementById('fechaSiniestro').value = a.fecha;
+            document.getElementById('horaSiniestro').value = a.hora || '09:00';
             updateReferencia();
-            
-            if(atestado.usoGeo) {
+            if(a.usoGeo) {
                 setLocationMode('geo');
-                document.getElementById('geoLat').value = atestado.geoLat || '';
-                document.getElementById('geoLon').value = atestado.geoLon || '';
-                document.getElementById('geoFullAddress').value = atestado.geoAddress || '';
-                if(atestado.geoLat) {
-                    document.getElementById('latValue').textContent = parseFloat(atestado.geoLat).toFixed(6);
-                    document.getElementById('lonValue').textContent = parseFloat(atestado.geoLon).toFixed(6);
-                    document.getElementById('geoAddress').textContent = atestado.geoAddress || 'GPS';
+                document.getElementById('geoLat').value = a.geoLat || '';
+                document.getElementById('geoLon').value = a.geoLon || '';
+                document.getElementById('geoFullAddress').value = a.geoAddress || '';
+                if(a.geoLat) {
+                    document.getElementById('latValue').textContent = parseFloat(a.geoLat).toFixed(6);
+                    document.getElementById('lonValue').textContent = parseFloat(a.geoLon).toFixed(6);
+                    document.getElementById('geoAddress').textContent = a.geoAddress || 'GPS';
                     document.getElementById('geoInfo').classList.add('active');
                 }
             } else {
                 setLocationMode('manual');
-                document.getElementById('lugarSiniestro').value = atestado.lugar;
+                document.getElementById('lugarSiniestro').value = a.lugar;
             }
-            
-            document.getElementById('matriculas').value = atestado.matriculas || '';
-            diligenciasTemp = atestado.diligencias ? JSON.parse(JSON.stringify(atestado.diligencias)) : [];
-            implicadosTemp = atestado.implicados ? JSON.parse(JSON.stringify(atestado.implicados)) : [];
-            
+            document.getElementById('matriculas').value = a.matriculas || '';
+            diligenciasTemp = a.diligencias ? JSON.parse(JSON.stringify(a.diligencias)) : [];
+            implicadosTemp = a.implicados ? JSON.parse(JSON.stringify(a.implicados)) : [];
             renderDiligenciasTemp();
             renderImplicados();
             updatePieChart();
-            
             document.getElementById('deleteSection').style.display = diligenciasTemp.length > 0 ? 'block' : 'none';
             document.getElementById('mainView').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
@@ -2456,32 +2430,20 @@
         }
 
         async function saveAtestado() {
-            const numAtestado = document.getElementById('numAtestado').value.trim();
+            const num = document.getElementById('numAtestado').value.trim();
             const fecha = document.getElementById('fechaSiniestro').value;
             const hora = document.getElementById('horaSiniestro').value;
             const instructor = document.getElementById('instructorCP').value.trim();
             const secretario = document.getElementById('secretarioCP').value.trim();
-            
-            if(!numAtestado || !fecha || !hora || !instructor || !secretario) {
-                alert('❌ Completa campos obligatorios');
-                return;
-            }
-            
+            if(!num || !fecha || !hora || !instructor || !secretario) { alert('❌ Completa campos obligatorios'); return; }
             const id = document.getElementById('currentId').value;
             const usoGeo = currentLocationMode === 'geo';
-            const lugar = usoGeo ? 
-                (document.getElementById('geoFullAddress').value || 'GPS') : 
-                document.getElementById('lugarSiniestro').value.trim();
-            
+            const lugar = usoGeo ? (document.getElementById('geoFullAddress').value || 'GPS') : document.getElementById('lugarSiniestro').value.trim();
             const newData = {
-                numAtestado: numAtestado,
-                fecha: fecha,
-                hora: hora,
-                lugar: lugar,
-                instructorCP: instructor,
-                secretarioCP: secretario,
+                numAtestado: num, fecha, hora, lugar,
+                instructorCP: instructor, secretarioCP: secretario,
                 matriculas: document.getElementById('matriculas').value.trim(),
-                usoGeo: usoGeo,
+                usoGeo,
                 geoLat: document.getElementById('geoLat').value,
                 geoLon: document.getElementById('geoLon').value,
                 geoAddress: document.getElementById('geoFullAddress').value,
@@ -2492,35 +2454,21 @@
                 organizacion: 'Policía Local C.P. 0855 UVAC Palma',
                 fechaModificacion: new Date().toISOString()
             };
-
-            showDebug('💾 Guardando #' + numAtestado);
-
             const savedId = await saveToCloud(newData, id);
-            
-            if(!id) {
-                newData.id = savedId;
-                atestados.push(newData);
-            } else {
-                const index = atestados.findIndex(a => a.id === id);
-                if(index !== -1) {
-                    atestados[index] = { ...atestados[index], ...newData, id };
-                }
-            }
-
+            if(!id) { newData.id = savedId; atestados.push(newData); }
+            else { const idx = atestados.findIndex(x => x.id === id); if(idx !== -1) atestados[idx] = {...atestados[idx], ...newData, id}; }
             const completed = diligenciasTemp.filter(d => d.completed).length;
-            alert('✅ Atestado #' + numAtestado + ' GUARDADO\n📋 ' + diligenciasTemp.length + ' diligencia(s)\n👥 ' + implicadosTemp.length + ' implicado(s)\n✅ ' + completed + ' realizada(s)');
+            alert('✅ Atestado #' + num + ' GUARDADO\n📋 ' + diligenciasTemp.length + ' diligencia(s)\n👥 ' + implicadosTemp.length + ' implicado(s)\n✅ ' + completed + ' realizada(s)');
             goBack();
         }
 
         async function deleteAtestado() {
             const id = document.getElementById('currentId').value;
-            const atestado = atestados.find(a => a.id === id);
-            
-            if(!atestado) return;
-            
-            if(confirm('⚠️ ¿Eliminar Atestado #' + atestado.numAtestado + '?')) {
+            const a = atestados.find(x => x.id === id);
+            if(!a) return;
+            if(confirm('⚠️ ¿Eliminar Atestado #' + a.numAtestado + '?')) {
                 await deleteFromCloud(id);
-                atestados = atestados.filter(a => a.id !== id);
+                atestados = atestados.filter(x => x.id !== id);
                 localStorage.setItem('atestadosDB', JSON.stringify(atestados));
                 alert('🗑️ Eliminado');
                 goBack();
@@ -2528,69 +2476,33 @@
         }
 
         function exportToExcel() {
-            if(atestados.length === 0) {
-                alert('❌ No hay atestados');
-                return;
-            }
-            
-            let csv = 'text/csv;charset=utf-8,';
-            csv += 'Organizacion,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Matriculas,Implicados,Diligencias\n';
-            
+            if(atestados.length === 0) { alert('❌ No hay atestados'); return; }
+            let csv = 'text/csv;charset=utf-8,Organizacion,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Matriculas,Diligencias\n';
             atestados.forEach(a => {
-                const implicados = (a.implicados || []).map(i => i.tipo + ':' + i.nombre).join('; ');
-                const diligencias = (a.diligencias || []).map(d => d.tipo + ':' + (d.completed ? 'HECHO' : 'PENDIENTE')).join('; ');
-                
-                csv += '"' + a.organizacion + '","' + a.numAtestado + '","' + a.fecha + '","' + a.hora + '","' + a.lugar + '","' + a.instructorCP + '","' + a.secretarioCP + '","' + a.matriculas + '","' + implicados + '","' + diligencias + '"\n';
+                const dil = (a.diligencias||[]).map(d => d.tipo+':'+(d.completed?'HECHO':'PENDIENTE')).join('; ');
+                csv += '"'+a.organizacion+'","'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'","'+a.matriculas+'","'+dil+'"\n';
             });
-
             const link = document.createElement('a');
             link.href = encodeURI(csv);
-            link.download = 'Atestados_' + new Date().toISOString().split('T')[0] + '.csv';
+            link.download = 'Atestados_'+new Date().toISOString().split('T')[0]+'.csv';
             link.click();
             alert('✅ Exportado ' + atestados.length + ' atestado(s)');
         }
 
-        function formatDate(dateString) {
-            if(!dateString) return '';
-            return new Date(dateString).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-        }
+        function formatDate(s) { if(!s) return ''; return new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}); }
 
         // ============================================
-        // INITIALIZATION
+        // INIT
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
-            showDebug('🚀 Iniciando aplicación...');
-            
-            const savedTheme = localStorage.getItem('theme');
-            if(savedTheme) {
-                document.documentElement.setAttribute('data-theme', savedTheme);
-            }
-            
+            const theme = localStorage.getItem('theme');
+            if(theme) document.documentElement.setAttribute('data-theme', theme);
             checkLogin();
-            
-            window.addEventListener('online', () => { 
-                isOnline = true; 
-                showDebug('🌐 Conexión restaurada');
-                updateSyncStatus('online');
-            });
-            window.addEventListener('offline', () => { 
-                isOnline = false; 
-                showDebug('📡 Sin conexión');
-                updateSyncStatus('offline');
-            });
-            
-            updateSyncStatus(firebaseInitialized && isOnline ? 'online' : 'offline');
-            
-            const fechaInput = document.getElementById('fechaDiligencia');
-            if(fechaInput) {
-                fechaInput.valueAsDate = new Date();
-            }
-            
-            showDebug('✅ Aplicación lista');
+            window.addEventListener('online', () => { isOnline = true; updateSyncStatus('online'); });
+            window.addEventListener('offline', () => { isOnline = false; updateSyncStatus('offline'); });
+            const fi = document.getElementById('fechaDiligencia');
+            if(fi) fi.valueAsDate = new Date();
+            console.log('✅ Aplicación iniciada');
         });
     </script>
 </body>
