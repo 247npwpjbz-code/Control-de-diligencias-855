@@ -1219,17 +1219,13 @@
                             <select id="tipoDiligencia">
                                 <option value="">Seleccionar...</option>
                                 <option value="Diligencia de Hechos">Diligencia de Hechos</option>
-                                <option value="Inspección Ocular de la Vía">Inspección Ocular de la Vía</option>
-                                <option value="Inspección Ocular del Vehículo A">Inspección Ocular del Vehículo A</option>
-                                <option value="Inspección Ocular del Vehículo B">Inspección Ocular del Vehículo B</option>
-                                <option value="Inspección Ocular del Vehículo C">Inspección Ocular del Vehículo C</option>
-                                <option value="Inspección Ocular Conductor">Inspección Ocular Conductor</option>
-                                <option value="Inspección Ocular Peatón">Inspección Ocular Peatón</option>
-                                <option value="Inspección Ocular Testigo">Inspección Ocular Testigo</option>
-                                <option value="Croquis del Accidente">Croquis del Accidente</option>
-                                <option value="Denuncias Administrativas">Denuncias Administrativas</option>
-                                <option value="Diligencias Penales">Diligencias Penales</option>
-                                <option value="Otras Diligencias">Otras Diligencias</option>
+                                <option value="Diligencia Inspección Ocular Vehículo">Diligencia Inspección Ocular Vehículo</option>
+                                <option value="Diligencia de Parecer">Diligencia de Parecer</option>
+                                <option value="Diligencia de Inspección Ocular de la Vía">Diligencia de Inspección Ocular de la Vía</option>
+                                <option value="Diligencia de Manifestación">Diligencia de Manifestación</option>
+                                <option value="Diligencia de Proceder">Diligencia de Proceder</option>
+                                <option value="Diligencia de Finalización y/o Archivo">Diligencia de Finalización y/o Archivo</option>
+                                <option value="Croquis del accidente">Croquis del accidente</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1759,13 +1755,12 @@
         }
 
         // ============================================
-        // QR CODE - CORREGIDO
+        // QR CODE - CORREGIDO (MÍNIMO DATOS)
         // ============================================
         function showQR() {
             console.log('🔍 showQR llamada');
             
             const numAtestado = document.getElementById('numAtestado').value;
-            const fecha = document.getElementById('fechaSiniestro').value;
             
             if(!numAtestado) {
                 alert('❌ Escribe un número de atestado');
@@ -1780,8 +1775,8 @@
             try {
                 document.getElementById('qrContainer').innerHTML = '';
                 
-                // DATOS REDUCIDOS PARA EVITAR OVERFLOW
-                const qrData = 'Atestado #' + numAtestado + '\n' + fecha + '\nPolicía Local Palma';
+                // DATOS MÍNIMOS - SOLO NÚMERO (20-30 caracteres máx)
+                const qrData = '#' + numAtestado;
                 
                 console.log('📝 QR Data:', qrData, '(' + qrData.length + ' chars)');
                 
@@ -1796,6 +1791,7 @@
                 
                 document.getElementById('qrModal').classList.add('active');
                 console.log('✅ QR generado');
+                alert('✅ QR generado: ' + qrData);
             } catch(error) {
                 console.error('❌ Error QR:', error);
                 alert('❌ Error QR: ' + error.message);
@@ -1807,7 +1803,7 @@
         }
 
         // ============================================
-        // PDF - CORREGIDO
+        // PDF - CORREGIDO (TODOS LOS DATOS)
         // ============================================
         function generatePDF() {
             console.log('🔍 generatePDF llamada');
@@ -1818,6 +1814,7 @@
             }
             
             try {
+                // LEER TODOS LOS DATOS DEL FORMULARIO
                 const numAtestado = document.getElementById('numAtestado').value || 'S/N';
                 const fecha = document.getElementById('fechaSiniestro').value || 'Sin fecha';
                 const hora = document.getElementById('horaSiniestro').value || 'Sin hora';
@@ -1825,11 +1822,14 @@
                 const instructor = document.getElementById('instructorCP').value || 'Sin instructor';
                 const secretario = document.getElementById('secretarioCP').value || 'Sin secretario';
                 const matriculas = document.getElementById('matriculas').value || 'Sin matrículas';
+                const geoLat = document.getElementById('geoLat').value;
+                const geoLon = document.getElementById('geoLon').value;
                 
-                console.log('📋 Datos:', numAtestado, fecha, lugar);
+                console.log('📋 Datos PDF:', numAtestado, fecha, lugar, instructor, secretario);
                 
                 const doc = new jsPDF('p', 'mm', 'a4');
                 
+                // ENCABEZADO
                 doc.setFillColor(26, 35, 126);
                 doc.rect(0, 0, 210, 35, 'F');
                 doc.setTextColor(255, 255, 255);
@@ -1839,55 +1839,100 @@
                 doc.setFontSize(14);
                 doc.text('C.P. 0855 - UVAC PALMA', 105, 23, { align: 'center' });
                 doc.setFontSize(11);
-                doc.text('ATESTADO DE TRÁFICO', 105, 30, { align: 'center' });
+                doc.text('ATESTADO DE ACCIDENTE DE TRÁFICO', 105, 30, { align: 'center' });
                 
+                // DATOS GENERALES
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(10);
                 doc.setDrawColor(200, 200, 200);
                 doc.setFillColor(245, 245, 245);
-                doc.rect(15, 40, 180, 40, 'FD');
+                doc.rect(15, 40, 180, 50, 'FD');
+                
                 doc.setFont('helvetica', 'bold');
-                doc.text('Nº: ' + numAtestado, 20, 48);
+                doc.text('Nº ATESTADO: ' + numAtestado, 20, 48);
                 doc.text('FECHA: ' + fecha, 120, 48);
+                
                 doc.setFont('helvetica', 'normal');
                 doc.text('HORA: ' + hora, 20, 55);
                 doc.text('LUGAR: ' + lugar, 20, 62);
-                doc.text('INSTRUCTOR: ' + instructor, 20, 70);
-                doc.text('SECRETARIO: ' + secretario, 120, 70);
+                
+                if(geoLat && geoLon) {
+                    doc.text('GPS: ' + parseFloat(geoLat).toFixed(6) + ', ' + parseFloat(geoLon).toFixed(6), 120, 55);
+                }
                 
                 doc.setFont('helvetica', 'bold');
-                doc.text('VEHÍCULOS', 15, 88);
-                doc.line(15, 90, 195, 90);
+                doc.text('INSTRUCTOR C.P.: ' + instructor, 20, 72);
+                doc.text('SECRETARIO C.P.: ' + secretario, 120, 72);
+                
+                // VEHÍCULOS
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text('VEHÍCULOS IMPLICADOS', 15, 98);
+                doc.setDrawColor(26, 35, 126);
+                doc.line(15, 100, 195, 100);
                 doc.setFont('helvetica', 'normal');
-                doc.text(matriculas, 15, 96);
+                doc.setFontSize(10);
+                doc.text(matriculas || 'Sin matrículas', 15, 106);
                 
-                let yPos = 105;
+                // IMPLICADOS
+                let yPos = 115;
+                if(implicadosTemp && implicadosTemp.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('IMPLICADOS (' + implicadosTemp.length + ')', 15, yPos);
+                    doc.line(15, yPos + 2, 195, yPos + 2);
+                    yPos += 8;
+                    doc.setFont('helvetica', 'normal');
+                    
+                    implicadosTemp.forEach((imp, i) => {
+                        if(yPos > 250) { doc.addPage(); yPos = 20; }
+                        doc.text((i + 1) + '. ' + (imp.nombre || 'Sin nombre') + ' (' + imp.tipo + ')', 15, yPos);
+                        doc.text('DNI: ' + (imp.dni || 'N/A'), 15, yPos + 5);
+                        doc.text('Tel: ' + (imp.telefono || 'N/A'), 100, yPos + 5);
+                        doc.text('Aseguradora: ' + (imp.aseguradora || 'N/A'), 15, yPos + 10);
+                        yPos += 15;
+                    });
+                    yPos += 5;
+                }
+                
+                // DILIGENCIAS
                 doc.setFont('helvetica', 'bold');
-                doc.text('DILIGENCIAS', 15, yPos);
+                doc.text('DILIGENCIAS (' + diligenciasTemp.length + ')', 15, yPos);
                 doc.line(15, yPos + 2, 195, yPos + 2);
-                yPos += 10;
+                yPos += 8;
                 doc.setFont('helvetica', 'normal');
                 
                 if(diligenciasTemp && diligenciasTemp.length > 0) {
                     diligenciasTemp.forEach((d, i) => {
                         if(yPos > 270) { doc.addPage(); yPos = 20; }
                         const status = d.completed ? '☑' : '☐';
-                        doc.text(status + ' ' + (i + 1) + '. ' + d.tipo, 15, yPos);
+                        const completedDate = d.completed && d.completedDate ? ' (' + new Date(d.completedDate).toLocaleDateString() + ')' : '';
+                        doc.text(status + ' ' + (i + 1) + '. ' + d.tipo + ' - ' + d.fecha + completedDate, 15, yPos);
                         yPos += 6;
                     });
                 } else {
-                    doc.text('Sin diligencias', 15, yPos);
+                    doc.text('Sin diligencias registradas', 15, yPos);
+                    yPos += 6;
                 }
                 
+                // FOTOS
+                const totalFotos = diligenciasTemp.reduce((acc, d) => acc + (d.fotos ? d.fotos.length : 0), 0);
+                yPos += 5;
+                doc.setFont('helvetica', 'bold');
+                doc.text('FOTOGRAFÍAS ADJUNTAS: ' + totalFotos, 15, yPos);
+                
+                // PIE DE PÁGINA
                 doc.setFillColor(26, 35, 126);
                 doc.rect(0, 280, 210, 15, 'F');
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(8);
-                doc.text('Policía Local Palma - C.P. 0855', 105, 287, { align: 'center' });
+                doc.text('Policía Local de Palma - C.P. 0855', 105, 287, { align: 'center' });
+                doc.text('UVAC - Unidad de Valoración y Atención Continuada', 105, 292, { align: 'center' });
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.text('Página 1 de ' + pageCount, 105, 297, { align: 'center' });
                 
-                doc.save('Atestado_' + numAtestado + '.pdf');
+                doc.save('Atestado_' + numAtestado + '_' + fecha + '.pdf');
                 console.log('✅ PDF generado');
-                alert('✅ PDF generado');
+                alert('✅ PDF generado con todos los datos');
             } catch(error) {
                 console.error('❌ Error PDF:', error);
                 alert('❌ Error PDF: ' + error.message);
