@@ -971,6 +971,114 @@
             font-family: monospace;
         }
 
+        /* DENUNCIAS ADMINISTRATIVAS STYLES */
+        .denuncias-search-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .denuncias-search-box {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .denuncias-search-box:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        .denuncias-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+        }
+
+        .denuncias-results.active {
+            display: block;
+        }
+
+        .denuncia-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .denuncia-item:hover {
+            background: #f8f9fa;
+        }
+
+        .denuncia-item:last-child {
+            border-bottom: none;
+        }
+
+        .denuncia-code {
+            font-weight: 700;
+            color: var(--police-blue);
+            font-size: 12px;
+        }
+
+        .denuncia-text {
+            margin-top: 5px;
+            color: var(--text-main);
+            font-size: 13px;
+        }
+
+        .denuncias-selected {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed var(--border);
+        }
+
+        .denuncia-selected-item {
+            background: white;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .denuncia-selected-text {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .denuncia-selected-code {
+            font-weight: 700;
+            color: var(--police-blue);
+            margin-right: 10px;
+            font-size: 12px;
+        }
+
+        .btn-remove-denuncia {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
         @media (min-width: 768px) {
             .container { max-width: 1200px; margin: 0 auto; }
             .list-container { height: calc(100vh - 200px); overflow-y: auto; }
@@ -1262,6 +1370,23 @@
                     </div>
                     <div id="debugInfo" class="debug-info"></div>
                 </div>
+                
+                <!-- DENUNCIAS ADMINISTRATIVAS -->
+                <div class="form-section">
+                    <h2>📋 Denuncias Administrativas</h2>
+                    <div class="denuncias-search-container">
+                        <input type="text" 
+                               id="denunciasSearch" 
+                               class="denuncias-search-box" 
+                               placeholder="🔍 Buscar infracción (ej: velocidad, alcohol, móvil...)">
+                        <div id="denunciasResults" class="denuncias-results"></div>
+                    </div>
+                    <div id="denunciasSelected" class="denuncias-selected">
+                        <p style="color:var(--text-sec); font-size:13px; margin:0;">Infracciones seleccionadas:</p>
+                        <div id="denunciasList"></div>
+                    </div>
+                </div>
+                
                 <div class="form-section">
                     <div class="firebase-debug" id="firebaseDebug">
                         🔍 Estado Firebase: Cargando...
@@ -1299,6 +1424,131 @@
     </div>
 
     <script>
+        // ============================================
+        // BASE DE DATOS DE INFRACCIONES DGT
+        // ============================================
+        const infraccionesDGT = [
+            { codigo: 'A-1', texto: 'Conducir bajo la influencia de bebidas alcohólicas (tasa superior a la permitida)' },
+            { codigo: 'A-2', texto: 'Conducir bajo la influencia de drogas o estupefacientes' },
+            { codigo: 'B-1', texto: 'Exceso de velocidad (hasta 30 km/h por encima del límite)' },
+            { codigo: 'B-2', texto: 'Exceso de velocidad (más de 30 km/h hasta 50 km/h por encima del límite)' },
+            { codigo: 'B-3', texto: 'Exceso de velocidad (más de 50 km/h por encima del límite)' },
+            { codigo: 'C-1', texto: 'Conducir utilizando manualmente el teléfono móvil' },
+            { codigo: 'C-2', texto: 'Conducir utilizando sistemas de navegación u otros dispositivos manualmente' },
+            { codigo: 'D-1', texto: 'No utilizar el cinturón de seguridad o sistemas de retención infantil' },
+            { codigo: 'D-2', texto: 'Transportar pasajeros en condiciones que dificulten la libertad de movimientos' },
+            { codigo: 'E-1', texto: 'Conducir sin haber obtenido el permiso o licencia de conducción' },
+            { codigo: 'E-2', texto: 'Conducir con el permiso o licencia caducado' },
+            { codigo: 'F-1', texto: 'No respetar la señal de stop' },
+            { codigo: 'F-2', texto: 'No respetar la señal de ceda el paso' },
+            { codigo: 'F-3', texto: 'No respetar la luz roja del semáforo' },
+            { codigo: 'G-1', texto: 'Conducir con neumáticos en mal estado' },
+            { codigo: 'G-2', texto: 'Vehículo sin ITV o con ITV desfavorable' },
+            { codigo: 'H-1', texto: 'No respetar la prioridad de paso de peatones' },
+            { codigo: 'H-2', texto: 'No respetar la prioridad de paso de otros vehículos' },
+            { codigo: 'I-1', texto: 'Estacionar en lugar prohibido (doble fila, paso de peatones, etc.)' },
+            { codigo: 'I-2', texto: 'Estacionar en zona de carga y descarga en horario no permitido' },
+            { codigo: 'J-1', texto: 'No llevar la documentación del vehículo (permiso de circulación, ITV)' },
+            { codigo: 'J-2', texto: 'No llevar el seguro obligatorio del vehículo en vigor' },
+            { codigo: 'K-1', texto: 'Realizar adelantamientos indebidos o peligrosos' },
+            { codigo: 'K-2', texto: 'Circular por el arcén o zonas no habilitadas' },
+            { codigo: 'L-1', texto: 'No llevar puesto el casco en motocicletas o ciclomotores' },
+            { codigo: 'L-2', texto: 'Transportar pasajeros sin casco en motocicletas' },
+            { codigo: 'M-1', texto: 'Conducir distraído (comer, beber, fumar, etc.)' },
+            { codigo: 'M-2', texto: 'No mantener la distancia de seguridad' },
+            { codigo: 'N-1', texto: 'No señalizar las maniobras (giros, cambios de carril)' },
+            { codigo: 'N-2', texto: 'Circular marcha atrás en autopista o autovía' },
+            { codigo: 'O-1', texto: 'Exceso de ruido (tubo de escape modificado, etc.)' },
+            { codigo: 'O-2', texto: 'Emisiones contaminantes superiores a las permitidas' }
+        ];
+
+        let denunciasSeleccionadas = [];
+
+        // ============================================
+        // FUNCIONES DE BÚSQUEDA DE INFRACCIONES
+        // ============================================
+        function initDenunciasSearch() {
+            const searchInput = document.getElementById('denunciasSearch');
+            const resultsDiv = document.getElementById('denunciasResults');
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if(searchTerm.length < 2) {
+                    resultsDiv.classList.remove('active');
+                    resultsDiv.innerHTML = '';
+                    return;
+                }
+                
+                const filtered = infraccionesDGT.filter(inf => 
+                    inf.codigo.toLowerCase().includes(searchTerm) ||
+                    inf.texto.toLowerCase().includes(searchTerm)
+                );
+                
+                if(filtered.length === 0) {
+                    resultsDiv.innerHTML = '<div class="denuncia-item" style="color:var(--text-sec);">No se encontraron infracciones</div>';
+                } else {
+                    resultsDiv.innerHTML = filtered.map(inf => `
+                        <div class="denuncia-item" onclick="addDenuncia('${inf.codigo}', '${inf.texto.replace(/'/g, "\\'")}')">
+                            <div class="denuncia-code">${inf.codigo}</div>
+                            <div class="denuncia-text">${inf.texto}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                resultsDiv.classList.add('active');
+            });
+            
+            // Cerrar resultados al hacer click fuera
+            document.addEventListener('click', function(e) {
+                if(!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+                    resultsDiv.classList.remove('active');
+                }
+            });
+        }
+
+        function addDenuncia(codigo, texto) {
+            // Verificar si ya está añadida
+            if(denunciasSeleccionadas.find(d => d.codigo === codigo)) {
+                alert('⚠️ Esta infracción ya está añadida');
+                return;
+            }
+            
+            denunciasSeleccionadas.push({ codigo, texto });
+            renderDenunciasSelected();
+            
+            // Limpiar búsqueda
+            document.getElementById('denunciasSearch').value = '';
+            document.getElementById('denunciasResults').classList.remove('active');
+            
+            showDebug('✅ Denuncia añadida: ' + codigo);
+        }
+
+        function removeDenuncia(codigo) {
+            denunciasSeleccionadas = denunciasSeleccionadas.filter(d => d.codigo !== codigo);
+            renderDenunciasSelected();
+            showDebug('🗑️ Denuncia eliminada: ' + codigo);
+        }
+
+        function renderDenunciasSelected() {
+            const container = document.getElementById('denunciasList');
+            
+            if(denunciasSeleccionadas.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-sec); font-size:13px; margin:10px 0;">No hay infracciones seleccionadas</p>';
+                return;
+            }
+            
+            container.innerHTML = denunciasSeleccionadas.map(d => `
+                <div class="denuncia-selected-item">
+                    <div>
+                        <span class="denuncia-selected-code">${d.codigo}</span>
+                        <span class="denuncia-selected-text">${d.texto}</span>
+                    </div>
+                    <button type="button" class="btn-remove-denuncia" onclick="removeDenuncia('${d.codigo}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+
         // ============================================
         // VARIABLES GLOBALES
         // ============================================
@@ -1348,6 +1598,9 @@
                 console.error('❌ QRCode NO cargado');
                 updateFirebaseDebug('❌ QRCode: Error');
             }
+            
+            // Inicializar buscador de denuncias
+            initDenunciasSearch();
         });
 
         function updateFirebaseDebug(msg) {
@@ -1755,7 +2008,7 @@
         }
 
         // ============================================
-        // QR CODE - CORREGIDO (MÍNIMO DATOS)
+        // QR CODE
         // ============================================
         function showQR() {
             console.log('🔍 showQR llamada');
@@ -1775,7 +2028,6 @@
             try {
                 document.getElementById('qrContainer').innerHTML = '';
                 
-                // DATOS MÍNIMOS - SOLO NÚMERO (20-30 caracteres máx)
                 const qrData = '#' + numAtestado;
                 
                 console.log('📝 QR Data:', qrData, '(' + qrData.length + ' chars)');
@@ -1803,7 +2055,7 @@
         }
 
         // ============================================
-        // PDF - CORREGIDO (TODOS LOS DATOS)
+        // PDF - CON DENUNCIAS
         // ============================================
         function generatePDF() {
             console.log('🔍 generatePDF llamada');
@@ -1814,7 +2066,6 @@
             }
             
             try {
-                // LEER TODOS LOS DATOS DEL FORMULARIO
                 const numAtestado = document.getElementById('numAtestado').value || 'S/N';
                 const fecha = document.getElementById('fechaSiniestro').value || 'Sin fecha';
                 const hora = document.getElementById('horaSiniestro').value || 'Sin hora';
@@ -1825,7 +2076,7 @@
                 const geoLat = document.getElementById('geoLat').value;
                 const geoLon = document.getElementById('geoLon').value;
                 
-                console.log('📋 Datos PDF:', numAtestado, fecha, lugar, instructor, secretario);
+                console.log('📋 Datos PDF:', numAtestado, fecha, lugar);
                 
                 const doc = new jsPDF('p', 'mm', 'a4');
                 
@@ -1914,6 +2165,23 @@
                     yPos += 6;
                 }
                 
+                // DENUNCIAS ADMINISTRATIVAS
+                yPos += 5;
+                if(denunciasSeleccionadas && denunciasSeleccionadas.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('DENUNCIAS ADMINISTRATIVAS (' + denunciasSeleccionadas.length + ')', 15, yPos);
+                    doc.line(15, yPos + 2, 195, yPos + 2);
+                    yPos += 8;
+                    doc.setFont('helvetica', 'normal');
+                    
+                    denunciasSeleccionadas.forEach((den, i) => {
+                        if(yPos > 270) { doc.addPage(); yPos = 20; }
+                        doc.text((i + 1) + '. [' + den.codigo + '] ' + den.texto, 15, yPos);
+                        yPos += 6;
+                    });
+                    yPos += 5;
+                }
+                
                 // FOTOS
                 const totalFotos = diligenciasTemp.reduce((acc, d) => acc + (d.fotos ? d.fotos.length : 0), 0);
                 yPos += 5;
@@ -1932,7 +2200,7 @@
                 
                 doc.save('Atestado_' + numAtestado + '_' + fecha + '.pdf');
                 console.log('✅ PDF generado');
-                alert('✅ PDF generado con todos los datos');
+                alert('✅ PDF generado con denuncias');
             } catch(error) {
                 console.error('❌ Error PDF:', error);
                 alert('❌ Error PDF: ' + error.message);
@@ -1960,8 +2228,10 @@
             setLocationMode('manual');
             diligenciasTemp = [];
             implicadosTemp = [];
+            denunciasSeleccionadas = [];
             renderDiligenciasTemp();
             renderImplicados();
+            renderDenunciasSelected();
             updatePieChart();
             updateReferencia();
             document.getElementById('deleteSection').style.display = 'none';
@@ -1996,8 +2266,10 @@
             document.getElementById('matriculas').value = a.matriculas || '';
             diligenciasTemp = a.diligencias ? JSON.parse(JSON.stringify(a.diligencias)) : [];
             implicadosTemp = a.implicados ? JSON.parse(JSON.stringify(a.implicados)) : [];
+            denunciasSeleccionadas = a.denuncias ? JSON.parse(JSON.stringify(a.denuncias)) : [];
             renderDiligenciasTemp();
             renderImplicados();
+            renderDenunciasSelected();
             updatePieChart();
             document.getElementById('deleteSection').style.display = diligenciasTemp.length > 0 ? 'block' : 'none';
             document.getElementById('mainView').style.display = 'none';
@@ -2022,11 +2294,30 @@
             const id = document.getElementById('currentId').value;
             const usoGeo = currentLocationMode === 'geo';
             const lugar = usoGeo ? (document.getElementById('geoFullAddress').value || 'GPS') : document.getElementById('lugarSiniestro').value.trim();
-            const newData = { numAtestado: num, fecha, hora, lugar, instructorCP: instructor, secretarioCP: secretario, matriculas: document.getElementById('matriculas').value.trim(), usoGeo, geoLat: document.getElementById('geoLat').value, geoLon: document.getElementById('geoLon').value, geoAddress: document.getElementById('geoFullAddress').value, diligencias: diligenciasTemp, implicados: implicadosTemp, agentName: currentAgent ? currentAgent.name : '', agentBadge: currentAgent ? currentAgent.badge : '', organizacion: 'Policía Local C.P. 0855 UVAC Palma', fechaModificacion: new Date().toISOString() };
+            const newData = { 
+                numAtestado: num, 
+                fecha, 
+                hora, 
+                lugar, 
+                instructorCP: instructor, 
+                secretarioCP: secretario, 
+                matriculas: document.getElementById('matriculas').value.trim(), 
+                usoGeo, 
+                geoLat: document.getElementById('geoLat').value, 
+                geoLon: document.getElementById('geoLon').value, 
+                geoAddress: document.getElementById('geoFullAddress').value, 
+                diligencias: diligenciasTemp, 
+                implicados: implicadosTemp,
+                denuncias: denunciasSeleccionadas,
+                agentName: currentAgent ? currentAgent.name : '', 
+                agentBadge: currentAgent ? currentAgent.badge : '', 
+                organizacion: 'Policía Local C.P. 0855 UVAC Palma', 
+                fechaModificacion: new Date().toISOString() 
+            };
             const savedId = await saveToCloud(newData, id);
             if(!id) { newData.id = savedId; atestados.push(newData); }
             else { const idx = atestados.findIndex(x => x.id === id); if(idx !== -1) atestados[idx] = {...atestados[idx], ...newData, id}; }
-            alert('✅ Guardado #' + num);
+            alert('✅ Guardado #' + num + '\n📋 ' + denunciasSeleccionadas.length + ' denuncia(s)');
             goBack();
         }
 
@@ -2045,8 +2336,11 @@
 
         function exportToExcel() {
             if(atestados.length === 0) { alert('❌ No hay atestados'); return; }
-            let csv = 'text/csv;charset=utf-8,Numero,Fecha,Hora,Lugar,Instructor,Secretario\n';
-            atestados.forEach(a => { csv += '"'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'"\n'; });
+            let csv = 'text/csv;charset=utf-8,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Denuncias\n';
+            atestados.forEach(a => { 
+                const denuncias = (a.denuncias||[]).map(d => d.codigo + ': ' + d.texto).join('; ');
+                csv += '"'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'","'+denuncias+'"\n'; 
+            });
             const link = document.createElement('a');
             link.href = encodeURI(csv);
             link.download = 'Atestados_'+new Date().toISOString().split('T')[0]+'.csv';
