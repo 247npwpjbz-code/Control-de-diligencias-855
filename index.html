@@ -293,7 +293,7 @@
             cursor: pointer;
         }
 
-        .btn-geo, .btn-camera, .btn-calendar, .btn-ocr {
+        .btn-geo, .btn-camera, .btn-calendar, .btn-ocr, .btn-print {
             border: none;
             padding: 10px 15px;
             border-radius: 8px;
@@ -326,6 +326,11 @@
 
         .btn-ocr {
             background: #9B59B6;
+            color: white;
+        }
+
+        .btn-print {
+            background: #2ECC71;
             color: white;
         }
 
@@ -1079,6 +1084,112 @@
             font-size: 12px;
         }
 
+        /* MANUAL GPS COORDINATES */
+        .manual-gps-container {
+            margin-top: 10px;
+            padding: 10px;
+            background: #E8F5E9;
+            border-radius: 8px;
+            border-left: 4px solid var(--success);
+            display: none;
+        }
+
+        .manual-gps-container.active {
+            display: block;
+        }
+
+        .manual-gps-text {
+            font-size: 13px;
+            color: var(--text-main);
+            font-family: monospace;
+        }
+
+        .btn-get-coords {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        /* QR PRINT STYLES */
+        @media print {
+            .no-print { display: none !important; }
+            header {
+                background: white !important;
+                border-bottom: 3px solid var(--police-blue);
+            }
+            .header-text { color: black !important; }
+            
+            /* QR Print optimized */
+            .qr-print-container {
+                display: block !important;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+                z-index: 9999;
+            }
+            
+            body * {
+                visibility: hidden;
+            }
+            
+            .qr-print-container, .qr-print-container * {
+                visibility: visible;
+            }
+            
+            .qr-print-container {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .qr-print-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .qr-print-content {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .qr-print-info {
+            font-size: 14px;
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .btn-close-print {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
         @media (min-width: 768px) {
             .container { max-width: 1200px; margin: 0 auto; }
             .list-container { height: calc(100vh - 200px); overflow-y: auto; }
@@ -1087,15 +1198,6 @@
             .header-text h1 { font-size: 28px; }
             .header-text h2 { font-size: 18px; }
             .logo-police { width: 100px; }
-        }
-
-        @media print {
-            .no-print { display: none !important; }
-            header {
-                background: white !important;
-                border-bottom: 3px solid var(--police-blue);
-            }
-            .header-text { color: black !important; }
         }
     </style>
 </head>
@@ -1135,6 +1237,20 @@
     <div id="syncStatus" class="sync-status offline" style="display:none;">
         <div class="sync-indicator"></div>
         <span id="syncText">📡 Offline</span>
+    </div>
+
+    <!-- QR Print Container -->
+    <div id="qrPrintContainer" class="qr-print-container">
+        <button class="btn-close-print" onclick="closeQRPrint()">❌ Cerrar</button>
+        <div class="qr-print-content">
+            <div id="qrPrintCode"></div>
+            <div class="qr-print-info">
+                <h3 id="qrPrintNumero"></h3>
+                <p id="qrPrintFecha"></p>
+                <p>Policía Local C.P. 0855 - UVAC Palma</p>
+            </div>
+            <button class="btn btn-success" onclick="window.print()" style="margin-top:20px;">🖨️ Imprimir Etiqueta</button>
+        </div>
     </div>
 
     <!-- Main App -->
@@ -1270,7 +1386,12 @@
                             <button type="button" class="toggle-btn" id="btnGeo" onclick="setLocationMode('geo')">📍 GPS</button>
                         </div>
                         <div id="manualLocation">
-                            <input type="text" id="lugarSiniestro" placeholder="Calle, número, Km...">
+                            <input type="text" id="lugarSiniestro" placeholder="Calle, número, Km..." onkeyup="checkManualAddress()">
+                            <button type="button" class="btn-get-coords" onclick="getCoordsFromAddress()">📍 Obtener Coordenadas de la Dirección</button>
+                            <div id="manualGpsContainer" class="manual-gps-container">
+                                <strong>📍 Coordenadas GPS:</strong>
+                                <div class="manual-gps-text" id="manualGpsText"></div>
+                            </div>
                         </div>
                         <div id="geoLocation" style="display:none;">
                             <button type="button" class="btn-geo" onclick="getCurrentPosition()">
@@ -1395,6 +1516,7 @@
                         <button type="button" class="btn btn-success" onclick="saveAtestado()">💾 Guardar</button>
                         <button type="button" class="btn" onclick="generatePDF()">📄 PDF</button>
                         <button type="button" class="btn" onclick="showQR()">📱 QR</button>
+                        <button type="button" class="btn btn-print" onclick="printQRLabel()">🖨️ Imprimir QR</button>
                         <button type="button" class="btn" onclick="exportToExcel()">📊 Excel</button>
                     </div>
                 </div>
@@ -1499,7 +1621,6 @@
                 resultsDiv.classList.add('active');
             });
             
-            // Cerrar resultados al hacer click fuera
             document.addEventListener('click', function(e) {
                 if(!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
                     resultsDiv.classList.remove('active');
@@ -1508,7 +1629,6 @@
         }
 
         function addDenuncia(codigo, texto) {
-            // Verificar si ya está añadida
             if(denunciasSeleccionadas.find(d => d.codigo === codigo)) {
                 alert('⚠️ Esta infracción ya está añadida');
                 return;
@@ -1517,7 +1637,6 @@
             denunciasSeleccionadas.push({ codigo, texto });
             renderDenunciasSelected();
             
-            // Limpiar búsqueda
             document.getElementById('denunciasSearch').value = '';
             document.getElementById('denunciasResults').classList.remove('active');
             
@@ -1547,6 +1666,103 @@
                     <button type="button" class="btn-remove-denuncia" onclick="removeDenuncia('${d.codigo}')">🗑️</button>
                 </div>
             `).join('');
+        }
+
+        // ============================================
+        // MANUAL GPS COORDINATES
+        // ============================================
+        let addressCheckTimeout;
+        
+        function checkManualAddress() {
+            clearTimeout(addressCheckTimeout);
+            addressCheckTimeout = setTimeout(() => {
+                const address = document.getElementById('lugarSiniestro').value.trim();
+                if(address.length > 10) {
+                    // Show button to get coordinates
+                    document.querySelector('.btn-get-coords').style.display = 'block';
+                }
+            }, 1000);
+        }
+
+        async function getCoordsFromAddress() {
+            const address = document.getElementById('lugarSiniestro').value.trim();
+            
+            if(!address) {
+                alert('❌ Escribe una dirección primero');
+                return;
+            }
+            
+            const btn = document.querySelector('.btn-get-coords');
+            btn.innerHTML = '<span>⏳</span> Buscando...';
+            btn.disabled = true;
+            
+            try {
+                // Geocoding con Nominatim (OpenStreetMap)
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Palma de Mallorca, España')}&limit=1`);
+                const data = await response.json();
+                
+                if(data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    
+                    // Guardar coordenadas
+                    document.getElementById('geoLat').value = lat;
+                    document.getElementById('geoLon').value = lon;
+                    document.getElementById('geoFullAddress').value = data[0].display_name;
+                    
+                    // Mostrar coordenadas
+                    document.getElementById('manualGpsText').textContent = `Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`;
+                    document.getElementById('manualGpsContainer').classList.add('active');
+                    
+                    showDebug('✅ Coordenadas obtenidas: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
+                    btn.innerHTML = '✅ Coordenadas Obtenidas';
+                } else {
+                    alert('⚠️ No se encontraron coordenadas para esta dirección');
+                    btn.innerHTML = '📍 Obtener Coordenadas de la Dirección';
+                }
+            } catch(error) {
+                console.error('❌ Error geocoding:', error);
+                alert('❌ Error al obtener coordenadas: ' + error.message);
+                btn.innerHTML = '📍 Obtener Coordenadas de la Dirección';
+            }
+            
+            btn.disabled = false;
+        }
+
+        // ============================================
+        // QR PRINT FUNCTION
+        // ============================================
+        function printQRLabel() {
+            const numAtestado = document.getElementById('numAtestado').value;
+            const fecha = document.getElementById('fechaSiniestro').value;
+            
+            if(!numAtestado) {
+                alert('❌ Escribe un número de atestado primero');
+                return;
+            }
+            
+            // Mostrar contenedor de impresión
+            document.getElementById('qrPrintContainer').style.display = 'block';
+            
+            // Generar QR para impresión
+            document.getElementById('qrPrintCode').innerHTML = '';
+            new QRCode(document.getElementById('qrPrintCode'), {
+                text: '#' + numAtestado,
+                width: 300,
+                height: 300,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            document.getElementById('qrPrintNumero').textContent = 'Atestado #' + numAtestado;
+            document.getElementById('qrPrintFecha').textContent = fecha || new Date().toLocaleDateString();
+            
+            showDebug('🖨️ QR preparado para impresión');
+        }
+
+        function closeQRPrint() {
+            document.getElementById('qrPrintContainer').style.display = 'none';
         }
 
         // ============================================
@@ -1599,7 +1815,6 @@
                 updateFirebaseDebug('❌ QRCode: Error');
             }
             
-            // Inicializar buscador de denuncias
             initDenunciasSearch();
         });
 
@@ -1931,6 +2146,11 @@
             document.getElementById('geoLocation').style.display = mode === 'geo' ? 'block' : 'none';
             document.getElementById('btnManual').classList.toggle('active', mode === 'manual');
             document.getElementById('btnGeo').classList.toggle('active', mode === 'geo');
+            
+            // Reset GPS containers
+            if(mode === 'manual') {
+                document.getElementById('manualGpsContainer').classList.remove('active');
+            }
         }
 
         function getCurrentPosition() {
@@ -2055,7 +2275,7 @@
         }
 
         // ============================================
-        // PDF - CON DENUNCIAS
+        // PDF
         // ============================================
         function generatePDF() {
             console.log('🔍 generatePDF llamada');
@@ -2225,6 +2445,7 @@
             document.getElementById('geoLon').value = '';
             document.getElementById('geoFullAddress').value = '';
             document.getElementById('geoInfo').classList.remove('active');
+            document.getElementById('manualGpsContainer').classList.remove('active');
             setLocationMode('manual');
             diligenciasTemp = [];
             implicadosTemp = [];
@@ -2262,6 +2483,11 @@
             } else {
                 setLocationMode('manual');
                 document.getElementById('lugarSiniestro').value = a.lugar;
+                // Show manual GPS if available
+                if(a.geoLat && a.geoLon) {
+                    document.getElementById('manualGpsText').textContent = 'Lat: ' + parseFloat(a.geoLat).toFixed(6) + ', Lon: ' + parseFloat(a.geoLon).toFixed(6);
+                    document.getElementById('manualGpsContainer').classList.add('active');
+                }
             }
             document.getElementById('matriculas').value = a.matriculas || '';
             diligenciasTemp = a.diligencias ? JSON.parse(JSON.stringify(a.diligencias)) : [];
@@ -2336,10 +2562,11 @@
 
         function exportToExcel() {
             if(atestados.length === 0) { alert('❌ No hay atestados'); return; }
-            let csv = 'text/csv;charset=utf-8,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Denuncias\n';
+            let csv = 'text/csv;charset=utf-8,Numero,Fecha,Hora,Lugar,Instructor,Secretario,Denuncias,Coordenadas\n';
             atestados.forEach(a => { 
                 const denuncias = (a.denuncias||[]).map(d => d.codigo + ': ' + d.texto).join('; ');
-                csv += '"'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'","'+denuncias+'"\n'; 
+                const coords = a.geoLat && a.geoLon ? parseFloat(a.geoLat).toFixed(6) + ', ' + parseFloat(a.geoLon).toFixed(6) : '';
+                csv += '"'+a.numAtestado+'","'+a.fecha+'","'+a.hora+'","'+a.lugar+'","'+a.instructorCP+'","'+a.secretarioCP+'","'+denuncias+'","'+coords+'"\n'; 
             });
             const link = document.createElement('a');
             link.href = encodeURI(csv);
